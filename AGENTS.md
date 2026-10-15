@@ -1,11 +1,12 @@
-# SG Family Support Finder — OpenCode project instructions
+# SG Family Support Finder + Support Discovery Portal — OpenCode project instructions
 
 ## Source and objective
 Read `docs/Low Code Engineer JD.pdf` before planning. Page 4 is the assessment source of truth. If PDF parsing fails, request a verified text extract; never guess requirements.
-Build one OutSystems 11 Reactive Web module using a real MSF Family Services dataset from data.gov.sg. Provide user search/exploration, frontend/backend design, automated tests, AWS platform IaC, and a clear README.
+Build the assessment as a three-module OutSystems 11 application (`SGFamilySupport_LIB` ← `SGFamilySupport_CS` ← `SGFamilySupportFinder`) using real MSF datasets from data.gov.sg: a Family Service Centre directory (`FindCentres`) plus a guided support-discovery enhancement (`FindSupport`, labelled as enhancement). Provide user search/exploration, frontend/backend design, automated tests, AWS platform IaC, and a clear README.
 
 ## Working principles
-- Keep scope minimal: one public directory screen, search, details/contact/directions, loading/empty/error states. No authentication, persistent entities, timers, extra datasets, or map widgets unless verified necessary.
+- Keep scope minimal: public directory + guided support screens, search, details/contact/directions, loading/empty/error states. No authentication, persistent entities, timers, extra datasets, or map widgets unless verified necessary.
+- Datasets in use: MSF Family Services (`d_add23c06f7267e799185c79ccaa2099b`, 55 records), Social Service Offices (`d_22cfe2aed0bf20a679ab59bcaf0f8248`, 24 records), Strengthening Families Programme (`d_b3ce295807d1edc7442ff2d24355b0af`, 15 records) — each with its verified schema. Never invent records, contacts, or eligibility decisions; caregiving/disability shows official referrals only.
 - Prefer a Structure list over persistent Entities for read-only external data. Do not invent entities just to satisfy an assumed rubric.
 - Verify the dataset identifier, API contract, field names and endpoint behavior with actual responses before coding. Never substitute mock centre records for live data in the finished app.
 - Confirm the open Service Studio module name before every MCP mutation. Never modify the `Test` module. Use official O11 MCP tools and inspect Model API signatures before writing.

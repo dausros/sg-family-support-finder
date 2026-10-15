@@ -33,16 +33,15 @@ Published: https://personal-uu490uhn.outsystemscloud.com/SGFamilySupportFinder/F
   working Retry (incl. transport-failure path via `OnInitialize` exception
   handler). Playwright: **8/8 pass**.
 
-## Architecture (single module)
+## Architecture (three modules)
 
-Module: `SGFamilySupportFinder` (OutSystems 11, Reactive Web). Logical separation within the module; no persistent Entities (read-only public directory):
+Dependency direction: `SGFamilySupport_LIB` ← `SGFamilySupport_CS` ← `SGFamilySupportFinder` (Finder also references LIB directly for contracts). No persistent Entities, no circular dependencies.
 
-| Layer | Elements |
+| Module (type) | Owns |
 |---|---|
-| Data contracts | `FamilyServiceCentre` Structure + GeoJSON mapping Structures |
-| Integration | `DataGovSG` REST client (`PollDownload`, `DownloadGeoJSON` with `OnBeforeRequest` full-URL override + S3-host/dataset-path validation) |
-| Application logic | `GetFamilyServiceCentres` server action (poll → validate → download → deserialize → ForEach map → `CentreList`, `Success`, `ErrorMessage`) |
-| Presentation | `FindCentres` screen (local lists + `OnInitialize` fetch, `OnSearch` ForEach filter, `OpenExternalUrl` links) |
+| `SGFamilySupport_LIB` (Library) | Shared `FamilyServiceCentre` Structure as the public contract; no logic, REST, or UI |
+| `SGFamilySupport_CS` (Service) | `DataGovSG` REST (`PollDownload`, `DownloadGeoJSON` + `OnBeforeRequest` full-URL override), CS-local `GeoJSONDownloadUrl` site property, GeoJSON DTO Structures, public `GetFamilyServiceCentres` (`CentreList`, `Success`, `ErrorMessage`) |
+| `SGFamilySupportFinder` (Reactive Web) | `FindCentres` screen, local filter lists, `OnInitialize` (calls the CS action), `OnSearch` (local `ForEach` filter), `OpenExternalUrl` links. No REST consumption, no backend logic, no duplicate contracts |
 
 ## REST integration
 
@@ -114,9 +113,10 @@ Two-step retrieval in `GetFamilyServiceCentres`:
 
 - The download URL travels via the `GeoJSONDownloadUrl` site property
   (validated S3 host + dataset path, overwritten on every successful poll
-  immediately before use). Concurrent users can only ever swap one fresh
-  same-dataset URL for another; a header-scoped handoff is possible but
-  adds callback complexity for no observable benefit.
+  immediately before use). Site properties are shared environment state,
+  not request-scoped storage — this is a known design trade-off: a
+  header-scoped handoff through `OnBeforeRequest` would be cleaner but was
+  deferred to avoid re-verifying the working retrieval path.
 - The platform top menu (app title, Login link) is stock OutSystems chrome;
   the shared `Common/Menu` block was intentionally left untouched.
 - Pre-existing `Common/Login` + `Common/InvalidPermissions` role warnings are untouched template defaults.

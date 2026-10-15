@@ -1,12 +1,13 @@
 # SG Family Support Finder — Playwright tests
 
-> Status: **PASS 8/8 (15 Oct 2026)** against the published app
-> `https://personal-uu490uhn.outsystemscloud.com/SGFamilySupportFinder/FindCentres`
-> (`APP_BASE_URL`). Run with `--workers=1` — the personal environment
+> Status: **PASS 14/14 (16 Oct 2026)** against the published apps
+> (`APP_BASE_URL` = FindCentres URL; FindSupport specs derive its URL by
+> path swap). Run with `--workers=1` — the personal environment
 > throttles under parallel page loads (a `--workers=2` run showed transient
-> load timeouts that pass serially). Six live-data specs + two load specs +
-> one labelled `[MOCKED]` screenservices-abort error/retry spec. HTML
-> report in `playwright-report/`.
+> load timeouts that pass serially). Eight FindCentres specs (seven live +
+> one labelled `[MOCKED]` screenservices-abort error/retry) plus six
+> FindSupport specs (form, per-category live records, input neutrality,
+> referral popups, nav both ways). HTML report in `playwright-report/`.
 
 ## Layout
 
@@ -18,6 +19,7 @@
 | `no-results.spec.ts` | (4) no-results / empty state |
 | `contact-directions.spec.ts` | (5) contact details (TELEPHONE/EMAIL) + address fragment + directions link |
 | `api-error-retry.mock.spec.ts` | (6) **[MOCKED]** offline/browser-channel error + retry (labelled mock, not live evidence) |
+| `findsupport.spec.ts` | (7) FindSupport: form loads, per-category guidance + live SSO/FSC/SFP records, income/household neutrality, official-link popups, nav both ways |
 | `helpers.ts` | shared base-URL guard + known-record constants |
 | `playwright.config.ts` | config; base URL from env only |
 | `package.json` | `test`, `test:headed` scripts |
@@ -46,13 +48,19 @@ Do not hardcode a live URL — pass it via `APP_BASE_URL` at runtime.
 cd tests
 npm install
 $env:APP_BASE_URL = "https://personal-uu490uhn.outsystemscloud.com/SGFamilySupportFinder/FindCentres"
-npx playwright test --workers=2
+npx playwright test --workers=1
 ```
 
-Use `--workers=2`: the personal environment throttles under full
-parallel load. The Search button (not bare fill+Tab) triggers search
+Use `--workers=1`: the personal environment throttles under parallel
+page loads (a `--workers=2` run showed transient load timeouts that pass
+serially). The Search button (not bare fill+Tab) triggers search
 deterministically; direction links are asserted via popup URL because O11
-action links render `href="#"`.
+action links render `href="#"`. Data waits (`waitForData`,
+`waitForSupportData`) click through transient upstream HTTP 429 error
+states via Retry and keep polling (bounded — genuine breakage still
+fails). data.gov.sg poll-downloads were observed throttled (429) on
+16 Oct 2026 under burst load; the app degrades to partial results with a
+visible warning by design.
 
 Linux/macOS:
 
@@ -73,11 +81,15 @@ real O11 screen widget names. Keep changes minimal and deterministic.
 
 ## Mock policy
 
-`api-error-retry.mock.spec.ts` faults the browser-to-O11 channel via
-`context.setOffline(true)` — NOT the upstream data.gov.sg call. Rationale:
+`api-error-retry.mock.spec.ts` aborts the browser-to-O11 screen-action call
+(`POST .../screenservices/.../ActionGetFamilyServiceCentres*`) — NOT the
+upstream data.gov.sg call. Rationale:
 the O11 server action calls data.gov.sg server-side, so a `page.route`
 intercept on a data.gov.sg URL would never fire in the browser and would be
-a silent no-op. The spec is filename- and title-labelled `[MOCKED]` and must
+a silent no-op. Aborting the screen-action channel exercises the genuine
+app-level error path (`OnInitialize` exception handler → error state +
+Retry → recovery to live records). The spec is filename- and
+title-labelled `[MOCKED]` and must
 never be presented as live-data evidence.
 
 ## Locator notes (post test-reviewer audit)

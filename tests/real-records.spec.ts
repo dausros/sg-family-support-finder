@@ -15,19 +15,7 @@ test('real Family Service Centre records appear', async ({ page }) => {
   // The list should populate from the live API. Accept either the known
   // record or a generic non-empty result list (O11 lists render <div>s, so
   // postal-code text is the portable fallback when no listitem role exists).
-  // Boolean poll (not locator .or()) to avoid strict-mode violations when
-  // several fallbacks match at once.
-  await expect
-    .poll(
-      async () => {
-        const body = (await page.textContent('body')) ?? '';
-        return (
-          body.includes(KNOWN_CENTRE_NAME) || /\b\d{6}\b/.test(body)
-        );
-      },
-      { timeout: 45000 },
-    )
-    .toBe(true);
+  // waitForData retries through transient upstream 429 error states.
   await waitForData(page);
 
   // Results count label, e.g. "12 centres" / "12 results found".

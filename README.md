@@ -33,15 +33,34 @@ Published: https://personal-uu490uhn.outsystemscloud.com/SGFamilySupportFinder/F
   working Retry (incl. transport-failure path via `OnInitialize` exception
   handler). Playwright: **8/8 pass**.
 
+## FindSupport — guided support discovery (enhancement, verified live 16 Oct 2026)
+
+Published: https://personal-uu490uhn.outsystemscloud.com/SGFamilySupportFinder/FindSupport (public, no login, nothing stored).
+
+- Guided form: support need (financial / family / children / caregiving),
+  optional income (explicitly not used for eligibility), household
+  situation; category buttons switch transparent local matching.
+- Live datasets: SSO (24) + FSC (55) + SFP (15) via CS actions
+  `GetSocialServiceOffices` / `GetStrengtheningFamiliesServices`
+  (request-scoped header handoff, no shared state); per-dataset failures
+  degrade to a visible warning instead of blocking the screen — verified
+  live during an upstream SFP 429 episode (55 FSC + 24 SSO rendered).
+- Financial → ComCare guidance + verified MSF link + SSO cards; family /
+  children → FSC + SFP cards with guarded contact links; caregiving →
+  SG Enable + Enabling Guide referrals only (no invented matches).
+  Wording is "potentially relevant" throughout; no eligibility claims.
+- Bidirectional nav with `FindCentres`; `SupportLocation` shared contract
+  in LIB; Playwright `findsupport.spec.ts` (6 tests).
+
 ## Architecture (three modules)
 
 Dependency direction: `SGFamilySupport_LIB` ← `SGFamilySupport_CS` ← `SGFamilySupportFinder` (Finder also references LIB directly for contracts). No persistent Entities, no circular dependencies.
 
 | Module (type) | Owns |
 |---|---|
-| `SGFamilySupport_LIB` (Library) | Shared `FamilyServiceCentre` Structure as the public contract; no logic, REST, or UI |
-| `SGFamilySupport_CS` (Service) | `DataGovSG` REST (`PollDownload`, `DownloadGeoJSON` + `OnBeforeRequest` full-URL override), CS-local `GeoJSONDownloadUrl` site property, GeoJSON DTO Structures, public `GetFamilyServiceCentres` (`CentreList`, `Success`, `ErrorMessage`) |
-| `SGFamilySupportFinder` (Reactive Web) | `FindCentres` screen, local filter lists, `OnInitialize` (calls the CS action), `OnSearch` (local `ForEach` filter), `OpenExternalUrl` links. No REST consumption, no backend logic, no duplicate contracts |
+| `SGFamilySupport_LIB` (Library) | Shared `FamilyServiceCentre` + `SupportLocation` Structures as public contracts; no logic, REST, or UI |
+| `SGFamilySupport_CS` (Service) | `DataGovSG` REST (FSC poll/download + `OnBeforeRequest` full-URL override; SSO/SFP poll/download via request-scoped header handoff), CS-local `GeoJSONDownloadUrl` site property (FSC path), GeoJSON DTO Structures, public `GetFamilyServiceCentres` / `GetSocialServiceOffices` / `GetStrengtheningFamiliesServices` (`CentreList`/`LocationList`, `Success`, `ErrorMessage`) |
+| `SGFamilySupportFinder` (Reactive Web) | `FindCentres` screen (local `ForEach` filter) + `FindSupport` guided screen (category matching, local lists, partial-failure warnings), `OnInitialize` fetch chains, `OpenExternalUrl`/`OpenSupportUrl` links. No REST consumption, no backend logic, no duplicate contracts |
 
 ## REST integration
 
@@ -86,14 +105,17 @@ Two-step retrieval in `GetFamilyServiceCentres`:
   (run serially: `npx playwright test --workers=1`).
   Deterministic waits (`expect.poll`, `waitForFunction`); no fixed sleeps; no
   hardcoded environment URLs. Audited read-only by test-reviewer; corrections applied.
-- Status: **PASS 8/8 (15 Oct 2026)** on the published URL above
-  (`--workers=2`): app-loads ×2, real-records, search ×2 (button-triggered,
-  deterministic), no-results, contact-directions (popup-URL assertion —
-  O11 action links render `href="#"`), `[MOCKED]` screenservices-abort
-  error/retry with recovery to 55 records. Test corrections made for real
+- Status: **PASS 14/14 (16 Oct 2026)** serially (`--workers=1`) on the
+  published URLs: 8 FindCentres specs (app-loads ×2, real-records, search
+  ×2 button-triggered, no-results, contact-directions via popup-URL
+  assertion since O11 action links render `href="#"`, `[MOCKED]`
+  screenservices-abort error/retry with recovery) + 6 FindSupport specs
+  (guided form, per-category live records, income/household neutrality,
+  official-link popups, bidirectional nav). Test corrections made for real
   O11 behavior only (explicit Search-button trigger, boolean-poll
   assertions instead of strict-mode-violating `.or()` chains, popup-URL
-  instead of `href` assertion); no defect hidden. See `tests/README.md`.
+  instead of `href` assertion, generous first-load timeouts); no defect
+  hidden. See `tests/README.md`.
 
 ## AWS IaC
 

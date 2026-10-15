@@ -14,16 +14,7 @@ test('contact details and directions link displayed', async ({ page }) => {
   // Prefer the known record, but fall back to any rendered card (O11 lists
   // render <div>s, so postal-code text is the portable fallback) in case the
   // single known NAME is renamed or removed from the live dataset.
-  // Boolean poll (not locator .or()) to avoid strict-mode violations.
-  await expect
-    .poll(
-      async () => {
-        const body = (await page.textContent('body')) ?? '';
-        return body.includes(KNOWN_CENTRE_NAME) || /\b\d{6}\b/.test(body);
-      },
-      { timeout: 45000 },
-    )
-    .toBe(true);
+  // waitForData retries through transient upstream 429 error states.
   await waitForData(page);
   const clickable = page
     .getByRole('link', { name: new RegExp('Lakeside', 'i') })

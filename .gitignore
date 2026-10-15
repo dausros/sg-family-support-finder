@@ -1,0 +1,22 @@
+# Dependencies and generated artefacts — never commit
+node_modules/
+test-results/
+playwright-report/
+blob-report/
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Session tokens and local temp
+*.log

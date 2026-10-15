@@ -1,0 +1,16 @@
+{
+  "name": "sg-family-support-finder-tests",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Playwright scaffolding for SG Family Support Finder (O11). BLOCKED pending publish — do not present as passing.",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.1",
+    "@types/node": "^22.9.0",
+    "typescript": "^5.6.3"
+  }
+}

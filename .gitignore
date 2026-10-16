@@ -20,3 +20,12 @@ Thumbs.db
 
 # Session tokens and local temp
 *.log
+
+# Secrets — never commit
+.env
+.env.*
+*.pem
+*.key
+*credentials*.json
+secrets/
+service.json

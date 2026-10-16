@@ -37,19 +37,25 @@ test('[MOCKED] api error shows labelled error state with retry', async ({
 
   // Remove the fault and retry: the page must recover to real records
   // (dataset may evolve — assert live-data signals, not fixed counts).
+  // Recovery can take a while under upstream throttling: re-locate Retry
+  // (the button may re-render) and keep polling, mirroring waitForData.
   await page.unroute(DATA_CALL);
-  await retry.click();
-  await expect
-    .poll(
-      async () => {
-        const body = (await page.textContent('body')) ?? '';
-        return (
-          /Lakeside Family Centre/.test(body) || /\b\d{6}\b/.test(body)
-        );
-      },
-      { timeout: 30000 },
-    )
-    .toBe(true);
+  const deadline = Date.now() + 120000;
+  let recovered = false;
+  for (;;) {
+    const body = (await page.textContent('body')) ?? '';
+    if (/Lakeside Family Centre/.test(body) || /\b\d{6}\b/.test(body)) {
+      recovered = true;
+      break;
+    }
+    if (Date.now() > deadline) break;
+    const retryAgain = page.getByRole('button', { name: /retry/i }).first();
+    if (await retryAgain.isVisible().catch(() => false)) {
+      await retryAgain.click();
+    }
+    await page.waitForTimeout(5000);
+  }
+  expect(recovered).toBe(true);
   await expect(page.getByText(/\d+ centres found/i)).toBeVisible({
     timeout: 10000,
   });

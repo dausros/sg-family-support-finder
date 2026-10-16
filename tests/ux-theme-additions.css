@@ -1,0 +1,75 @@
+/* =====================================================================
+ * SG Family Support Finder — post-handoff theme additions (DRAFT)
+ * Paste into the SGFamilySupportFinder Theme stylesheet AFTER Session 2's
+ * CentreDetailsPanel work is merged. Do NOT edit screens directly with this.
+ * Tokens: 8px scale, max-widths, palette (all pairs verified >= 4.5:1).
+ * Pending MCP read-back of widget style classes may require selector tweaks.
+ * ===================================================================== */
+
+:root {
+  --sgsf-primary: #006B52;        /* white on primary 6.51:1 */
+  --sgsf-navy: #123047;           /* navy on white 13.64:1 */
+  --sgsf-bg: #F4F7F8;             /* body #263746 on bg 11.36:1 */
+  --sgsf-card: #FFFFFF;
+  --sgsf-tint: #E7F4EE;
+  --sgsf-text: #263746;
+  --sgsf-muted: #536575;          /* muted on white 6.02:1 — body-size only */
+  --sgsf-error: #B42318;          /* on white 6.57:1 */
+  --sgsf-amber-text: #8A5A00;     /* on white 5.93:1 */
+  --sgsf-radius: 12px;
+  --sgsf-page-max: 1160px;
+  --sgsf-form-max: 760px;
+}
+
+/* Page containers: cap line length, align edges */
+.sgsf-page { max-width: var(--sgsf-page-max); margin: 0 auto; padding: 0 24px; }
+.sgsf-form { max-width: var(--sgsf-form-max); margin: 0 auto; }
+.sgsf-page-title { font-size: 34px; line-height: 1.25; color: var(--sgsf-navy); margin: 24px 0 8px; }
+.sgsf-lead { font-size: 16px; line-height: 1.6; color: var(--sgsf-text); margin: 0 0 16px; }
+
+/* Centre cards: responsive grid (1 col mobile, 2 col >= 768px) */
+.sgsf-card-grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+@media (min-width: 768px) {
+  .sgsf-card-grid { grid-template-columns: 1fr 1fr; }
+}
+.sgsf-card {
+  background: var(--sgsf-card); border-radius: var(--sgsf-radius);
+  padding: 20px; border: 1px solid #DCE5E8;
+}
+.sgsf-card h3 { font-size: 19px; line-height: 1.4; margin: 0 0 4px; color: var(--sgsf-navy); }
+/* Stack contact actions on narrow screens instead of mid-phrase wrap */
+.sgsf-contact { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.sgsf-contact a { min-height: 44px; display: inline-flex; align-items: center; }
+
+/* Wizard: one step visible at a time; consistent option buttons */
+.sgsf-steps { display: flex; gap: 8px; margin: 0 0 16px; font-size: 14px; color: var(--sgsf-muted); }
+.sgsf-steps [aria-current="step"] { color: var(--sgsf-primary); font-weight: 600; }
+.sgsf-options { display: grid; grid-template-columns: 1fr; gap: 12px; }
+@media (min-width: 768px) {
+  .sgsf-options { grid-template-columns: 1fr 1fr; }
+}
+.sgsf-options .btn, .sgsf-options button { min-height: 48px; white-space: normal; line-height: 1.4; }
+.sgsf-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
+
+/* Results: collapsible detail sections (Accordion pattern handles behaviour) */
+.sgsf-rec-card h3 { font-size: 19px; }
+.sgsf-why { background: var(--sgsf-tint); border-radius: 8px; padding: 12px 16px; }
+
+/* Accessibility fixes for D-A11Y-01 / D-A11Y-02 */
+h1.sgsf-h1 { font-size: 34px; line-height: 1.25; }
+@media (max-width: 430px) {
+  h1.sgsf-h1, .sgsf-page-title { font-size: 28px; }
+}
+a.skip-nav { display: inline-block; }
+a.skip-nav:not(:focus):not(:active) {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap;
+}
+a.skip-nav:focus, a.skip-nav:active {
+  position: static; width: auto; height: auto; clip: auto;
+  outline: 3px solid var(--sgsf-primary); outline-offset: 2px;
+}
+:focus-visible { outline: 3px solid var(--sgsf-primary); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}

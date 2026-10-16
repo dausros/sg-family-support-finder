@@ -141,11 +141,11 @@ test('navigation between FindSupport and FindCentres', async ({ page }) => {
   requireBaseURL();
   await gotoSupport(page);
   // Header nav anchors carry real hrefs but are not exposed under the
-  // link role in some renders; click by text and assert by URL.
-  await page.getByText('Browse Services', { exact: true }).click();
+  // link role in some renders; click by substring text and assert by URL.
+  await page.getByText(/browse services/i).first().click();
   await waitForData(page);
   expect(page.url()).toMatch(/FindCentres/);
-  await page.getByText('Find Support', { exact: true }).click();
+  await page.getByText(/find support/i).first().click();
   await expect(
     page.getByRole('button', { name: /financial difficulties/i }),
   ).toBeVisible({ timeout: 20000 });

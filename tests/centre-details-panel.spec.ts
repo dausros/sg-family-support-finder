@@ -149,9 +149,10 @@ test('FindSupport service locations open the same details panel', async ({
     page.getByRole('button', { name: /financial difficulties/i }),
   ).toBeVisible({ timeout: 60000 });
   await page.getByRole('button', { name: /family or relationship/i }).click();
-  const next = page.getByRole('button', { name: /^next$/i }).first();
-  if (await next.isVisible().catch(() => false)) {
-    await next.click();
+  // Step 1 requires explicit Continue (selection never auto-navigates).
+  const cont = page.getByRole('button', { name: /^continue$/i }).first();
+  if (await cont.isVisible().catch(() => false)) {
+    await cont.click();
   }
   const viewResults = page
     .getByRole('button', { name: /view results/i })

@@ -50,10 +50,15 @@ const COUNT_RE = /\d+\s*(centres|results|found)/i;
 const UPDATED_RE = /Updated\s+(\d{1,2}\s+[A-Za-z]{3}\s+\d{4},\s*\d{1,2}:\d{2})/;
 const STALE_WARNING =
   'Live data is unavailable. Showing last updated records.';
-// Browser→O11 screen-action channel carrying this app's data (NOT the
-// upstream data.gov.sg call, which is server-side and invisible here).
-// Alias carries a numeric suffix (currently `…ActionGetCachedFamilyServiceCentres`);
-const DATA_CALL = '**/screenservices/**/ActionGet*FamilyServiceCentres*';
+// Browser→O11 screen-action channels carrying this app's data (NOT the
+// upstream data.gov.sg calls, which are server-side and invisible here).
+// All three dataset channels must fail for the directory error state
+// (single-dataset faults degrade to partial results by design).
+const DATA_CALLS = [
+  '**/screenservices/**/ActionGet*FamilyServiceCentres*',
+  '**/screenservices/**/ActionGet*SocialServiceOffices*',
+  '**/screenservices/**/ActionGet*StrengtheningFamiliesServices*',
+];
 
 const MONTHS: Record<string, number> = {
   jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
@@ -89,13 +94,16 @@ function countNumber(text: string): string | null {
 }
 
 /**
- * Rendered centre name-set: all visible `… Family Centre …` texts,
- * normalised + sorted. Portable until real widget hooks exist
+ * Rendered service name-set: all visible card-name texts, normalised +
+ * sorted. Matches FSC (`… Family Service …`), SSO (`Social Service
+ * Office …`) and SFP names. Portable until real widget hooks exist
  * (e.g. `[data-testid="centre-card"]`); O11 lists render <div>s so no
  * listitem-role assumption.
  */
 async function renderedNameSet(page: Page): Promise<string[]> {
-  const raw = await page.getByText(/Family Centre/i).allTextContents();
+  const raw = await page
+    .getByText(/family service|social service|strengthening families/i)
+    .allTextContents();
   return raw
     .map((t) => t.replace(/\s+/g, ' ').trim().toLowerCase())
     .filter(Boolean)
@@ -197,16 +205,19 @@ test(
   async ({ page }) => {
     // Fidelity note (same as api-error-retry.mock.spec.ts): the O11 server
     // action calls data.gov.sg server-side, so intercepting data.gov.sg in
-    // the browser would never fire. This faults the browser→O11
-    // screenservices channel (POST …/ActionGetCachedFamilyServiceCentres) to
-    // exercise the genuine app-level error path (error state + Retry →
-    // recovery). It does NOT prove the server-side stale-cache fallback
+    // the browser would never fire. This faults all three browser→O11
+    // screenservices channels (single-dataset faults now degrade gracefully
+    // instead of erroring) to exercise the genuine app-level error path
+    // (error state + Retry → recovery). It does NOT prove the server-side
+    // stale-cache fallback
     // (exact text `Live data is unavailable. Showing last updated records.`
     // + stored records when upstream is down); that requires server-side
     // fault injection against the published app and is NOT verified here.
     void STALE_WARNING;
     const baseURL = requireBaseURL();
-    await page.route(DATA_CALL, (route) => route.abort());
+    for (const pattern of DATA_CALLS) {
+      await page.route(pattern, (route) => route.abort());
+    }
     await page.goto(appUrl(baseURL), { waitUntil: 'domcontentloaded' });
 
     const errorState = page.getByText(/unable to retrieve|failed|error/i).first();
@@ -214,7 +225,7 @@ test(
     const retry = page.getByRole('button', { name: /retry/i }).first();
     await expect(retry).toBeVisible({ timeout: 10000 });
 
-    await page.unroute(DATA_CALL);
+    await page.unrouteAll({ behavior: 'wait' });
     // waitForData-style recovery loop (transient 429 may need retries).
     const deadline = Date.now() + 120000;
     let recovered = false;

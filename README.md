@@ -15,31 +15,39 @@ MSF is Singapore's lead ministry for social and family policies, delivering serv
 - Licence: Open Data Licence (free for personal or commercial use). Source: Ministry of Social and Family Development (2019), via data.gov.sg.
 - Verified record shape: `properties` (`OBJECTID`, `NAME`, `ADDRESSBLOCKHOUSENUMBER`, `ADDRESSSTREETNAME`, `ADDRESSFLOORNUMBER`, `ADDRESSUNITNUMBER`, `ADDRESSPOSTALCODE`, `TELEPHONE`, `EMAIL`, `DESCRIPTION`), `geometry.coordinates` as `[longitude, latitude]`. Example: `Lakeside Family Centre (Jurong West)`.
 
-## Implemented functionality (verified live 15 Oct 2026)
+## Implemented functionality (verified live 17 Oct 2026 — redesigned UI)
 
 Published: https://personal-uu490uhn.outsystemscloud.com/SGFamilySupportFinder/FindCentres (public, no login).
 
-- `FindCentres` screen: title + introduction, labelled search input + Search
-  button, live results count, responsive centre cards.
-- Case-insensitive local filtering by centre name, address and postal code
-  (dataset fetched once per page load; verified zero external calls on
-  search). Live results: `lakeside`→2, `jurong`→5, `640516`→1,
-  `tampines`→3, gibberish→0 with empty state, clear→55.
-- Each result: centre name, composed address, postal code, telephone
-  (`tel:`), email (`mailto:`), Google Maps directions link (verified popup
-  destination, e.g. `.../maps/dir/?api=1&destination=516 Jurong West St 52,
-  Singapore 640516`).
+- `FindCentres` is now a combined **Browse Support Services** directory (94
+  records: 55 FSC + 24 SSO + 15 SFP) served from the CS cache with
+  `Kind`-badged uniform cards in a responsive 2-column grid.
+- Search by name/address/postal code combines with a service-type segmented
+  filter (All/FSC/SSO/FSP), A–Z/Z–A sort, one-click Clear filters and an
+  active-filter summary. Live results: `lakeside`→2, `jurong`→5+FSC scope,
+  gibberish→empty state with recovery hint.
+- Real client-side pagination (10 per page, `Showing X–Y of N found`,
+  First/Prev/numbered/Next/Last with clamping and reset-on-filter). No
+  upstream calls on paginate/filter — cached retrieval only.
+- Each card: type badge, service name, composed address + postal code,
+  contact links (empty tel/mailto suppressed), prominent View details
+  opening the drawer. Detailed actions live in `CentreDetailsPanel`.
+- Branded header (Browse Services / Find Support, current-page indication,
+  no dead Login link), compact journey hero, single consolidated footer.
 - States: loading indicator, no-results message, API-error message with
-  working Retry (incl. transport-failure path via `OnInitialize` exception
-  handler). Playwright: **8/8 pass**.
+  working Retry. Character-encoding verified: MWS en-dashes render
+  correctly (Latin-1 mojibake repaired at the mapping layer).
 
-## FindSupport — guided support discovery (enhancement, verified live 16 Oct 2026)
+## FindSupport — guided support discovery (enhancement, verified live 17 Oct 2026)
 
-Published: https://personal-uu490uhn.outsystemscloud.com/SGFamilySupportFinder/FindSupport (public, no login, nothing stored).
+Published: https://personal-uu490uhn.outsystemscloud.com/SGFamilySupportFinder/FindSupport (public, no login, no user data stored).
 
-- Guided form: support need (financial / family / children / caregiving),
-  optional income (explicitly not used for eligibility), household
-  situation; category buttons switch transparent local matching.
+- Three-step wizard with explicit progression: (1) support need selection
+  (no auto-advance; visible selection echo + Continue), (2) one coherent
+  household form (situation options select without submitting, optional
+  income/size/employment/residency, single Back | View results footer,
+  non-negative income / positive household-size validation with an inline
+  message and no silent advance), (3) recommendations.
 - Live datasets: SSO (24) + FSC (55) + SFP (15) via CS actions
   `GetSocialServiceOffices` / `GetStrengtheningFamiliesServices`
   (request-scoped header handoff, no shared state); per-dataset failures
@@ -146,8 +154,13 @@ Two-step retrieval in `GetFamilyServiceCentres`:
   Deterministic waits (`expect.poll`, `waitForFunction`); no fixed sleeps; no
   hardcoded environment URLs. Audited read-only by test-reviewer; corrections applied.
 - Status: **30 passed, 0 failed (16 Oct 2026)** serially (`--workers=1`) on the
-  published URLs, including a visibly rendering embedded map and the four
-  enabled persistence specs: 8 FindCentres specs (app-loads ×2, real-records, search
+  pre-redesign publish, including the four enabled persistence specs.
+  Redesign verification (17 Oct 2026): combined directory (94 records),
+  wizard/pagination/filter specs (`wizard.spec.ts`, `directory.spec.ts`)
+  added; existing specs adapted to the explicit-Continue wizard and renamed
+  data channels; full serial re-verification in progress — see
+  `tests/README.md` for the final recorded result. Previously verified
+  suites (carried over): 8 FindCentres specs (app-loads ×2, real-records, search
   ×2 button-triggered, no-results, contact-directions via popup-URL
   assertion since O11 action links render `href="#"`, `[MOCKED]`
   screenservices-abort error/retry with recovery) + 6 FindSupport specs

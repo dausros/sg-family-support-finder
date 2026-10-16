@@ -59,8 +59,42 @@ Dependency direction: `SGFamilySupport_LIB` ← `SGFamilySupport_CS` ← `SGFami
 | Module (type) | Owns |
 |---|---|
 | `SGFamilySupport_LIB` (Library) | Shared `FamilyServiceCentre` + `SupportLocation` Structures as public contracts; no logic, REST, or UI |
-| `SGFamilySupport_CS` (Service) | `DataGovSG` REST (FSC poll/download + `OnBeforeRequest` full-URL override; SSO/SFP poll/download via request-scoped header handoff), CS-local `GeoJSONDownloadUrl` site property (FSC path), GeoJSON DTO Structures, public `GetFamilyServiceCentres` / `GetSocialServiceOffices` / `GetStrengtheningFamiliesServices` (`CentreList`/`LocationList`, `Success`, `ErrorMessage`) |
-| `SGFamilySupportFinder` (Reactive Web) | `FindCentres` screen (local `ForEach` filter) + `FindSupport` guided screen (category matching, local lists, partial-failure warnings), `OnInitialize` fetch chains, `OpenExternalUrl`/`OpenSupportUrl` links. No REST consumption, no backend logic, no duplicate contracts |
+| `SGFamilySupport_CS` (Service) | `DataGovSG` REST (FSC poll/download + `OnBeforeRequest` full-URL override; SSO/SFP poll/download via request-scoped header handoff), CS-local `GeoJSONDownloadUrl` site property (FSC path), GeoJSON DTO Structures, public live getters `GetFamilyServiceCentres` / `GetSocialServiceOffices` / `GetStrengtheningFamiliesServices` (`CentreList`/`LocationList`, `Success`, `ErrorMessage`), **plus the persistence layer below** |
+| `SGFamilySupportFinder` (Reactive Web) | `FindCentres` screen (local `ForEach` filter) + `FindSupport` guided screen (category matching, local lists, partial-failure warnings), `OnInitialize` fetch chains calling the cached CS getters, `OpenExternalUrl`/`OpenSupportUrl` links. No REST consumption, no backend logic, no duplicate contracts |
+
+## Persistence and caching (verified live 16 Oct 2026)
+
+`SGFamilySupport_CS` stores the three datasets in persistent Entities so
+repeat visits serve stored data without upstream calls:
+
+- Entities: `CachedCentre` (55 FSC rows), `CachedOffice` (24 SSO rows),
+  `CachedProgrammeSite` (15 SFP rows) — each keyed by the dataset `OBJECTID`
+  plus a `SyncStatus` row per dataset (`Dataset`, `LastSuccess`,
+  `LastAttempt`, `RecordCount`, `LastError`).
+- Sync: `SyncCentresCache` / `SyncOfficesCache` / `SyncProgrammeCache`
+  (full replace per run — delete-all then bulk insert — so reruns are
+  idempotent; each has its own exception handler that records the error in
+  `SyncStatus` and keeps last-known-good rows), orchestrated by input-less
+  `SyncDatasetCaches` (one dataset's failure never clears the others).
+- Serving: public `GetCachedFamilyServiceCentres` /
+  `GetCachedSocialServiceOffices` /
+  `GetCachedStrengtheningFamiliesServices` (same list outputs plus
+  `LastSynced`, `FromCache`, `StaleWarning`). Fresh cache (< 24 h old with
+  rows) is served with zero upstream calls; otherwise the action
+  refresh-through-fetches live, replaces the cache and updates the status;
+  if upstream fails and cached rows exist, they are returned with
+  `StaleWarning = "Live data is unavailable. Showing last updated records."`
+  instead of an error. The UI renders `LastSynced` as
+  `· Updated dd MMM yyyy, HH:mm` next to the results count.
+- Timers (created in Service Studio — the MCP merge on 11.55.92 rejects the
+  newer timer-schedule feature, so timers are Studio-authored, not
+  model-API-authored): `SeedDatasetCache` (on publish) and
+  `RefreshDatasetCache` (daily), both calling `SyncDatasetCaches` with a
+  20-minute timeout. Even if a timer never fires, the first screen load
+  self-seeds the cache through refresh-through.
+- Data fidelity: full Oct 2026 scans of all three datasets show no mojibake
+  or control characters; the only non-ASCII content is legitimate en-dashes
+  in MWS centre names, which persist and render end-to-end.
 
 ## REST integration
 
@@ -111,9 +145,9 @@ Two-step retrieval in `GetFamilyServiceCentres`:
   (run serially: `npx playwright test --workers=1`).
   Deterministic waits (`expect.poll`, `waitForFunction`); no fixed sleeps; no
   hardcoded environment URLs. Audited read-only by test-reviewer; corrections applied.
-- Status: **26 passed, 0 failed, 4 staged-skipped (16 Oct 2026)** serially (`--workers=1`) on the
-  published URLs, including a visibly rendering embedded map (the 4 skips are
-  `test.fixme` persistence specs awaiting the CS Entities implementation): 8 FindCentres specs (app-loads ×2, real-records, search
+- Status: **30 passed, 0 failed (16 Oct 2026)** serially (`--workers=1`) on the
+  published URLs, including a visibly rendering embedded map and the four
+  enabled persistence specs: 8 FindCentres specs (app-loads ×2, real-records, search
   ×2 button-triggered, no-results, contact-directions via popup-URL
   assertion since O11 action links render `href="#"`, `[MOCKED]`
   screenservices-abort error/retry with recovery) + 6 FindSupport specs
@@ -121,10 +155,13 @@ Two-step retrieval in `GetFamilyServiceCentres`:
   official-link popups, bidirectional nav) + 5 CentreDetailsPanel specs
   (sidebar open/update/Escape/directions/mobile sheet) + 7 responsive/a11y
   specs (overflow-free viewports 320→1920, touch targets, keyboard reach,
-  semantic headings, focusable skip link, visibly rendering map). Test corrections made for real
+  semantic headings, focusable skip link, visibly rendering map) + 4 persistence
+  specs (repeat-visit timestamp/record stability, <24h freshness, reload/Retry
+  no-duplicates, `[MOCKED]` channel fault/recovery). Test corrections made for real
   O11 behavior only (explicit Search-button trigger, boolean-poll
   assertions instead of strict-mode-violating `.or()` chains, popup-URL
-  instead of `href` assertion, generous first-load timeouts); no defect
+  instead of `href` assertion, generous first-load timeouts, updated
+  screenservices action-name patterns after the cache-first rebind); no defect
   hidden. See `tests/README.md`.
 
 ## AWS IaC
@@ -135,8 +172,10 @@ Two-step retrieval in `GetFamilyServiceCentres`:
 
 ## Assumptions and trade-offs
 
-- Structure list (not Entities): correct for small read-only external dataset; no local persistence, no timers.
-- Fetch-once + client-side filter: avoids repeated API calls for a ~44 KB dataset; server action keeps HTTP/mapping out of the UI.
+- Structure list (not Entities) for live contracts and UI mapping; persistent
+  Entities only for the dataset cache + sync metadata (small tables, full
+  replace, no timers in MCP-authored code).
+- Fetch-once + client-side filter: avoids repeated API calls for a ~44 KB dataset; server action keeps HTTP/mapping out of the UI. Cache-first serving extends this across visits: fresh cache means zero upstream calls per page load.
 - Postal code as Text preserves leading zeros/variable formats.
 - Three modules share one publish order (LIB → CS → Finder UI) to minimise scope, publish ordering and dependency risk for this assessment.
 - Directions via Google Maps links and panel Leaflet map (OpenStreetMap tiles, keyless CDN): no Google Maps API key, no billing.
@@ -149,6 +188,10 @@ Two-step retrieval in `GetFamilyServiceCentres`:
   not request-scoped storage — this is a known design trade-off: a
   header-scoped handoff through `OnBeforeRequest` would be cleaner but was
   deferred to avoid re-verifying the working retrieval path.
+- The two cache timers were created directly in Service Studio because the
+  MCP model API writes a timer-schedule feature that Studio 11.55.92
+  refuses to merge; their definitions live only in the module, not in any
+  scripted change.
 - The platform top menu (app title, Login link) is stock OutSystems chrome;
   the shared `Common/Menu` block was intentionally left untouched.
 - Pre-existing `Common/Login` + `Common/InvalidPermissions` role warnings are untouched template defaults.

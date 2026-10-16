@@ -1,11 +1,10 @@
 # SG Family Support Finder — Playwright tests
 
-> Status at last serial run (`--workers=1`): **26 passed, 0 failed, 4 staged-skipped**
+> Status at last serial run (`--workers=1`): **30 passed, 0 failed**
 > against the published apps
 > (`APP_BASE_URL` = FindCentres URL; FindSupport/panel specs derive their URLs),
-> including a visibly rendering embedded map. The 4 skips are `test.fixme`
-> persistence specs staged for the forthcoming CS Entities implementation.
-> Run with `--workers=1` — the personal environment
+> including a visibly rendering embedded map and the four enabled persistence
+> specs. Run with `--workers=1` — the personal environment
 > throttles under parallel page loads. Eight FindCentres specs (seven live +
 > one labelled `[MOCKED]` screenservices-abort error/retry) plus six
 > FindSupport specs (form, per-category live records, input neutrality,
@@ -22,6 +21,7 @@
 | `contact-directions.spec.ts` | (5) contact details (TELEPHONE/EMAIL) + address fragment + directions link |
 | `api-error-retry.mock.spec.ts` | (6) **[MOCKED]** offline/browser-channel error + retry (labelled mock, not live evidence) |
 | `findsupport.spec.ts` | (7) FindSupport: form loads, per-category guidance + live SSO/FSC/SFP records, income/household neutrality, official-link popups, nav both ways |
+| `persistence-refresh.spec.ts` | (9) persistence: repeat visit keeps `Updated …` timestamp + records stable (zero-refetch observable), timestamp parses and is <24h fresh, reload + Retry keep row-count and name-set identical, `[MOCKED]` browser-channel fault + Retry recovery (labelled mock, not server-side-fallback proof) |
 | `ux-responsive.spec.ts` | (8) responsive + a11y: zero horizontal overflow on both screens at 320/375/390/768/1024/1280/1440, 390px touch targets, keyboard reach, labels/`lang`/title/skip-link presence, semantic headings + focusable skip link (former `D-A11Y-01/02` gaps, now hard assertions) |
 > NOTE (Oct 2026): `D-A11Y-01/02` were `test.fail`-tracked while the app lacked heading roles and the layout flag; both now pass as hard assertions. If either regresses, reinstate `test.fail` rather than deleting the test.
 | `ux-baseline/` | viewport screenshots (320→1920) for both screens + measured `overflowX: 0` at every width |

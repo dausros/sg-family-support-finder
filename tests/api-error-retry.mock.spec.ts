@@ -9,15 +9,15 @@ import { requireBaseURL, appUrl } from './helpers';
  * server, NOT from the browser, so intercepting data.gov.sg in the browser
  * would never fire. Instead this faults the browser-to-O11 screen-action
  * channel that carries THIS app's data
- * (POST .../screenservices/.../ActionGetFamilyServiceCentres), which
+ * (POST .../screenservices/.../ActionGetCachedFamilyServiceCentres), which
  * exercises the genuine app-level error path: OnInitialize fails ->
  * LoadError state + Retry button -> un-fault -> Retry recovers to 55
  * records. Filename- and title-labelled [MOCKED]; never live-data evidence.
  */
 // The screenservices endpoint carries the consuming module's reference
-// alias (currently `.../ActionGetFamilyServiceCentres2`); match by prefix
-// so the fault survives alias renames.
-const DATA_CALL = '**/screenservices/**/ActionGetFamilyServiceCentres*';
+// alias (currently `.../ActionGetCachedFamilyServiceCentres`); match by
+// wildcard so the fault survives alias renames.
+const DATA_CALL = '**/screenservices/**/ActionGet*FamilyServiceCentres*';
 
 test('[MOCKED] api error shows labelled error state with retry', async ({
   page,

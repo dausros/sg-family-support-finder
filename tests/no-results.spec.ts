@@ -21,7 +21,7 @@ test('no-results state for gibberish query', async ({ page }) => {
   // The empty-state assertion below carries its own timeout, which covers
   // debounce / server round-trip — no fixed sleep needed.
   const emptyState = page
-    .getByText(/no results|no centres|nothing found|not found/i)
+    .getByText(/no results|no centres|no services match|nothing found|not found/i)
     .first();
   await expect(emptyState).toBeVisible({ timeout: 10000 });
 });

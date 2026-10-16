@@ -9,24 +9,33 @@ import { requireBaseURL, appUrl } from './helpers';
  * server, NOT from the browser, so intercepting data.gov.sg in the browser
  * would never fire. Instead this faults the browser-to-O11 screen-action
  * channel that carries THIS app's data
- * (POST .../screenservices/.../ActionGetCachedFamilyServiceCentres), which
+ * (POST .../screenservices/.../ActionGetCached* — all three dataset
+ * channels are faulted, since per-dataset failures now degrade gracefully
+ * instead of erroring the page), which
  * exercises the genuine app-level error path: OnInitialize fails ->
- * LoadError state + Retry button -> un-fault -> Retry recovers to 55
+ * LoadError state + Retry button -> un-fault -> Retry recovers to live
  * records. Filename- and title-labelled [MOCKED]; never live-data evidence.
  */
-// The screenservices endpoint carries the consuming module's reference
-// alias (currently `.../ActionGetCachedFamilyServiceCentres`); match by
-// wildcard so the fault survives alias renames.
-const DATA_CALL = '**/screenservices/**/ActionGet*FamilyServiceCentres*';
+ // The screenservices endpoint carries the consuming module's reference
+ // alias; match by wildcard so the fault survives alias renames. All three
+ // dataset channels must fail for the directory error state to appear
+ // (single-dataset failures degrade to partial results by design).
+const DATA_CALLS = [
+  '**/screenservices/**/ActionGet*FamilyServiceCentres*',
+  '**/screenservices/**/ActionGet*SocialServiceOffices*',
+  '**/screenservices/**/ActionGet*StrengtheningFamiliesServices*',
+];
 
 test('[MOCKED] api error shows labelled error state with retry', async ({
   page,
 }) => {
   const baseURL = requireBaseURL();
 
-  // Fault the data call, then load: the app shell renders but OnInitialize
-  // fails, so the API-error state with Retry must appear.
-  await page.route(DATA_CALL, (route) => route.abort());
+  // Fault all data calls, then load: the app shell renders but OnInitialize
+  // fails on every dataset, so the API-error state with Retry must appear.
+  for (const pattern of DATA_CALLS) {
+    await page.route(pattern, (route) => route.abort());
+  }
   await page.goto(appUrl(baseURL), { waitUntil: 'domcontentloaded' });
 
   const errorState = page.getByText(/unable to retrieve|failed|error/i).first();
@@ -39,7 +48,7 @@ test('[MOCKED] api error shows labelled error state with retry', async ({
   // (dataset may evolve — assert live-data signals, not fixed counts).
   // Recovery can take a while under upstream throttling: re-locate Retry
   // (the button may re-render) and keep polling, mirroring waitForData.
-  await page.unroute(DATA_CALL);
+  await page.unrouteAll({ behavior: 'wait' });
   const deadline = Date.now() + 120000;
   let recovered = false;
   for (;;) {
@@ -56,7 +65,7 @@ test('[MOCKED] api error shows labelled error state with retry', async ({
     await page.waitForTimeout(5000);
   }
   expect(recovered).toBe(true);
-  await expect(page.getByText(/\d+ centres found/i)).toBeVisible({
+  await expect(page.getByText(/showing|of \d+ found/i).first()).toBeVisible({
     timeout: 10000,
   });
 });

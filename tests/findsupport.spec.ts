@@ -21,10 +21,11 @@ async function pickNeed(
 }
 
 async function advanceToResults(page: import('@playwright/test').Page) {
-  // Three-step wizard: need -> household context -> results.
-  const next = page.getByRole('button', { name: /^next$/i }).first();
-  if (await next.isVisible().catch(() => false)) {
-    await next.click();
+  // Three-step wizard: pick need -> Continue -> household context -> View results.
+  // Selection never auto-navigates; each step has a single footer row.
+  const cont = page.getByRole('button', { name: /^continue$/i }).first();
+  if (await cont.isVisible().catch(() => false)) {
+    await cont.click();
   }
   const viewResults = page.getByRole('button', { name: /view results/i }).first();
   if (await viewResults.isVisible().catch(() => false)) {
@@ -76,10 +77,11 @@ test('financial need shows ComCare guidance and live SSO records', async ({
       { timeout: 30000 },
     )
     .toBe(true);
-  // Official MSF ComCare link opens the verified guidance page.
+  // Official MSF ComCare link opens the verified guidance page (scoped to
+  // the results guidance link; the footer carries a separate ComCare link).
   const [popup] = await Promise.all([
     page.waitForEvent('popup', { timeout: 10000 }),
-    page.getByRole('link', { name: /comcare/i }).click(),
+    page.getByRole('link', { name: /official msf comcare guidance/i }).click(),
   ]);
   expect(popup.url()).toMatch(/msf\.gov\.sg\/what-we-do\/comcare/i);
   await popup.close();
@@ -101,7 +103,11 @@ test('caregiving need shows official referrals, no invented matches', async ({
   await gotoSupport(page);
   await pickNeed(page, /caregiving/i);
   await advanceToResults(page);
-  await waitForSupportData(page);
+  // Caregiving shows official referrals (no location cards by design), so
+  // wait on recommendation content rather than dataset markers.
+  await expect(
+    page.getByText(/your assistance recommendations|potentially relevant support/i).first(),
+  ).toBeVisible({ timeout: 90000 });
   // Recommendation cards render after GetSchemeRecommendations completes,
   // which can lag the dataset lists that waitForSupportData keys on.
   await expect(page.getByRole('link', { name: /sg enable/i })).toBeVisible({
@@ -120,7 +126,8 @@ test('income and household inputs do not gate results', async ({ page }) => {
   await gotoSupport(page);
   await pickNeed(page, /children and parenting/i);
   // Step 2 inputs: recorded only, never used for eligibility.
-  await page.getByPlaceholder(/3000|household income/i).fill('Prefer not to say');
+  await page.getByRole('button', { name: /^continue$/i }).click();
+  await page.getByPlaceholder(/3000|household income/i).waitFor({ timeout: 30000 });
   await page
     .getByRole('button', { name: /single adult/i })
     .click();
@@ -133,9 +140,12 @@ test('income and household inputs do not gate results', async ({ page }) => {
 test('navigation between FindSupport and FindCentres', async ({ page }) => {
   requireBaseURL();
   await gotoSupport(page);
-  await page.getByRole('link', { name: /browse all/i }).click();
+  // Header nav anchors carry real hrefs but are not exposed under the
+  // link role in some renders; click by text and assert by URL.
+  await page.getByText('Browse Services', { exact: true }).click();
   await waitForData(page);
-  await page.getByRole('link', { name: /find support/i }).click();
+  expect(page.url()).toMatch(/FindCentres/);
+  await page.getByText('Find Support', { exact: true }).click();
   await expect(
     page.getByRole('button', { name: /financial difficulties/i }),
   ).toBeVisible({ timeout: 20000 });

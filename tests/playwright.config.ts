@@ -15,6 +15,11 @@ export default defineConfig({
   testMatch: ['**/*.spec.ts'],
   fullyParallel: true,
   retries: 0,
+  // Personal-environment throttling: cold loads routinely take ~20s and the
+  // waitForData helpers budget 120s of bounded Retry click-through, so the
+  // default 30s test budget would kill slow-but-healthy loads mid-poll.
+  // Per-assertion timeouts (toBeVisible etc.) still fail fast.
+  timeout: 180000,
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
     ...(baseURL ? { baseURL } : {}),

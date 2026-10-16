@@ -16,6 +16,20 @@ export function appUrl(baseURL: string): string {
 }
 
 /**
+ * Resolve a screen URL that works whether APP_BASE_URL points at the
+ * application root (.../SGFamilySupportFinder/ or .../SGFamilySupportFinder)
+ * or at a specific screen (.../SGFamilySupportFinder/FindCentres).
+ */
+export function screenUrl(baseURL: string, screen: string): string {
+  const clean = baseURL.replace(/\/+$/, '');
+  if (clean.endsWith('/' + screen)) return clean;
+  if (/FindCentres|FindSupport$/.test(clean)) {
+    return clean.replace(/(FindCentres|FindSupport)$/, screen);
+  }
+  return clean + '/' + screen;
+}
+
+/**
  * Known real record from data.gov.sg dataset d_add23c06f7267e799185c79ccaa2099b.
  * Field names: NAME, ADDRESSBLOCKHOUSENUMBER, ADDRESSSTREETNAME,
  * ADDRESSPOSTALCODE, TELEPHONE, EMAIL, geometry.coordinates [lon, lat].

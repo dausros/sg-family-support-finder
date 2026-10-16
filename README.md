@@ -88,8 +88,14 @@ Two-step retrieval in `GetFamilyServiceCentres`:
 - GeoJSON mapping Structures: `PollDownloadData`, `PollDownloadResponse`, `GeoJSONProperties`, `GeoJSONGeometry` (Decimal-list coordinates), `GeoJSONFeature`, `GeoJSONCollection`.
 - `GetFamilyServiceCentres` outputs `CentreList` (FamilyServiceCentre List), `Success` Boolean, `ErrorMessage` Text; full flow with validation If, site-property handoff, `ForEach` mapping via `ListAppend`, and an `AllExceptions` handler.
 - `DataGovSG` REST client + `OnBeforeRequest` callback (see above).
-- TrueChange: **0 errors** (5 expected warnings: template role defaults, OnInitialize server-call performance note, public-screen security note).
-- Last publication: success (15 Oct 2026).
+- TrueChange: **0 errors** (expected warnings only: template role defaults, OnInitialize server-call performance notes, public-screen security notes).
+- Last publication: success (16 Oct 2026).
+
+## CentreDetailsPanel (reusable block, verified live 16 Oct 2026)
+
+- `CentreDetailsPanel` Web Block (inputs `IsOpen`, `Location : SupportLocation`, `CentreType`; event `OnClose`): right-side drawer with type badge, address/postal/telephone+Call/email+Email, Get Directions / Open in Google Maps links, empty-contact fallback text, Esc-to-close with focusable Close, `role=dialog` semantics. Used by FindCentres (`FSC`) and FindSupport (FSC/SSO/SFP kinds).
+- Keyless Leaflet map (OpenStreetMap tiles via CDN, marker + popup, resize handling, guarded when coordinates are absent): no Google Maps API key, no billing. Raw coordinates are hidden from view (present in markup only for the map reader).
+- No map widget dependency in FindCentres/FindSupport themselves; the only map lives inside the panel block.
 
 ## Application access
 
@@ -105,13 +111,17 @@ Two-step retrieval in `GetFamilyServiceCentres`:
   (run serially: `npx playwright test --workers=1`).
   Deterministic waits (`expect.poll`, `waitForFunction`); no fixed sleeps; no
   hardcoded environment URLs. Audited read-only by test-reviewer; corrections applied.
-- Status: **PASS 14/14 (16 Oct 2026)** serially (`--workers=1`) on the
-  published URLs: 8 FindCentres specs (app-loads ×2, real-records, search
+- Status: **26 passed, 0 failed, 4 staged-skipped (16 Oct 2026)** serially (`--workers=1`) on the
+  published URLs, including a visibly rendering embedded map (the 4 skips are
+  `test.fixme` persistence specs awaiting the CS Entities implementation): 8 FindCentres specs (app-loads ×2, real-records, search
   ×2 button-triggered, no-results, contact-directions via popup-URL
   assertion since O11 action links render `href="#"`, `[MOCKED]`
   screenservices-abort error/retry with recovery) + 6 FindSupport specs
   (guided form, per-category live records, income/household neutrality,
-  official-link popups, bidirectional nav). Test corrections made for real
+  official-link popups, bidirectional nav) + 5 CentreDetailsPanel specs
+  (sidebar open/update/Escape/directions/mobile sheet) + 7 responsive/a11y
+  specs (overflow-free viewports 320→1920, touch targets, keyboard reach,
+  semantic headings, focusable skip link, visibly rendering map). Test corrections made for real
   O11 behavior only (explicit Search-button trigger, boolean-poll
   assertions instead of strict-mode-violating `.or()` chains, popup-URL
   instead of `href` assertion, generous first-load timeouts); no defect
@@ -128,8 +138,8 @@ Two-step retrieval in `GetFamilyServiceCentres`:
 - Structure list (not Entities): correct for small read-only external dataset; no local persistence, no timers.
 - Fetch-once + client-side filter: avoids repeated API calls for a ~44 KB dataset; server action keeps HTTP/mapping out of the UI.
 - Postal code as Text preserves leading zeros/variable formats.
-- Single module chosen over Core/UI split to minimise scope, publish ordering and dependency risk for this assessment.
-- Directions via Google Maps link (no map widget dependency).
+- Three modules share one publish order (LIB → CS → Finder UI) to minimise scope, publish ordering and dependency risk for this assessment.
+- Directions via Google Maps links and panel Leaflet map (OpenStreetMap tiles, keyless CDN): no Google Maps API key, no billing.
 
 ## Known limitations
 

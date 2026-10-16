@@ -1,13 +1,15 @@
 # SG Family Support Finder — Playwright tests
 
-> Status: **PASS 14/14 (16 Oct 2026)** against the published apps
-> (`APP_BASE_URL` = FindCentres URL; FindSupport specs derive its URL by
-> path swap). Run with `--workers=1` — the personal environment
-> throttles under parallel page loads (a `--workers=2` run showed transient
-> load timeouts that pass serially). Eight FindCentres specs (seven live +
+> Status at last serial run (`--workers=1`): **26 passed, 0 failed, 4 staged-skipped**
+> against the published apps
+> (`APP_BASE_URL` = FindCentres URL; FindSupport/panel specs derive their URLs),
+> including a visibly rendering embedded map. The 4 skips are `test.fixme`
+> persistence specs staged for the forthcoming CS Entities implementation.
+> Run with `--workers=1` — the personal environment
+> throttles under parallel page loads. Eight FindCentres specs (seven live +
 > one labelled `[MOCKED]` screenservices-abort error/retry) plus six
 > FindSupport specs (form, per-category live records, input neutrality,
-> referral popups, nav both ways). HTML report in `playwright-report/`.
+> referral popups, nav both ways). HTML report in `playwright-report/` (generated, gitignored).
 
 ## Layout
 
@@ -20,6 +22,9 @@
 | `contact-directions.spec.ts` | (5) contact details (TELEPHONE/EMAIL) + address fragment + directions link |
 | `api-error-retry.mock.spec.ts` | (6) **[MOCKED]** offline/browser-channel error + retry (labelled mock, not live evidence) |
 | `findsupport.spec.ts` | (7) FindSupport: form loads, per-category guidance + live SSO/FSC/SFP records, income/household neutrality, official-link popups, nav both ways |
+| `ux-responsive.spec.ts` | (8) responsive + a11y: zero horizontal overflow on both screens at 320/375/390/768/1024/1280/1440, 390px touch targets, keyboard reach, labels/`lang`/title/skip-link presence, semantic headings + focusable skip link (former `D-A11Y-01/02` gaps, now hard assertions) |
+> NOTE (Oct 2026): `D-A11Y-01/02` were `test.fail`-tracked while the app lacked heading roles and the layout flag; both now pass as hard assertions. If either regresses, reinstate `test.fail` rather than deleting the test.
+| `ux-baseline/` | viewport screenshots (320→1920) for both screens + measured `overflowX: 0` at every width |
 | `helpers.ts` | shared base-URL guard + known-record constants |
 | `playwright.config.ts` | config; base URL from env only |
 | `package.json` | `test`, `test:headed` scripts |

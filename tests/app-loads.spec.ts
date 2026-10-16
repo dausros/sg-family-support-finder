@@ -22,6 +22,7 @@ test('app loads and shows search input', async ({ page }) => {
 });
 
 test('loading indicator resolves to a usable page', async ({ page }) => {
+  test.setTimeout(120000);
   const baseURL = requireBaseURL();
   await page.goto(appUrl(baseURL), { waitUntil: 'domcontentloaded' });
 
@@ -33,6 +34,8 @@ test('loading indicator resolves to a usable page', async ({ page }) => {
   }
 
   // Page must end in a usable state regardless.
+  // Generous timeout: three sequential dataset fetches + transient
+  // upstream 429 retries can push first render past 20s under load.
   const search = page.getByRole('searchbox').or(page.getByPlaceholder(/search/i));
-  await expect(search.first()).toBeVisible({ timeout: 20000 });
+  await expect(search.first()).toBeVisible({ timeout: 60000 });
 });

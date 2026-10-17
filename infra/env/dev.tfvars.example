@@ -1,0 +1,11 @@
+# Development: smallest footprint, single-instance broker.
+dev_environment = {
+  enabled                  = true
+  fe_instance_type         = "m6i.large"
+  fe_min                   = 1
+  fe_max                   = 2
+  fe_desired               = 1
+  controller_instance_type = "m6i.large"
+  mq_instance_type         = "mq.t3.micro"
+  mq_deployment_mode       = "SINGLE_INSTANCE"
+}

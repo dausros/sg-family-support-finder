@@ -574,3 +574,8 @@ Screenshots (viewed): `ux-home-1280.png`, `ux-centres-p2-1280.png`, `ux-centres-
 - `admin.spec.ts`:
   - The logged-out redirect is checked live.
   - The add → save → hide → show flow runs when `SGFSF_ADMIN_USER` / `SGFSF_ADMIN_PASS` for a CentreAdmin test user are set. **Not run yet: no test admin account.**
+
+### Docs (20:30 SGT)
+- README "What the app does" rewritten for this round: dropdown filters, OSUI Pagination, 7-question wizard with Static Entity dropdowns, nearest centres, share/print, CentreAdmin screen and the role, accessibility. The testing table now matches the 17 Oct live run (47 passed, 0 failed, 1 skipped).
+- New `docs/ASSESSMENT_CHECKLIST.md`: every ask in the brief (last page of `docs/Low Code Engineer JD.pdf`) mapped to evidence, with ✅/⚠️.
+- IaC re-check on this branch (Terraform 1.9.8): `fmt -check` clean; `init -backend=false` + `validate` pass for `infra/` and `infra/bootstrap/`; tflint 0 issues; checkov 314 passed / 24 failed (all explained in `infra/README.md`). No plan or apply.

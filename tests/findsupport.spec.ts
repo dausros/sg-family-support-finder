@@ -1,97 +1,260 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, Page } from '@playwright/test';
 import { requireBaseURL, screenUrl, waitForData, waitForSupportData } from './helpers';
+
+// Find Support: 3-step wizard with personalised, indicative scheme ranking.
+// Ranking and notes come from SGFamilySupport_CS.GetSchemeRecommendations over
+// the static SchemeCatalogue (verified against official pages 2026-10-17).
+// Nothing here is an eligibility decision; the disclaimer must stay visible.
 
 const SUPPORT_URL = () =>
   screenUrl(process.env.APP_BASE_URL as string, 'FindSupport');
 
-async function gotoSupport(page: import('@playwright/test').Page) {
+async function gotoSupport(page: Page) {
   await page.goto(SUPPORT_URL(), { waitUntil: 'domcontentloaded' });
-  // Guided form renders (static widgets, then live lists resolve).
   // Generous timeout: three sequential dataset fetches on first load.
   await expect(
     page.getByRole('button', { name: /financial difficulties/i }),
   ).toBeVisible({ timeout: 60000 });
 }
 
-async function pickNeed(
-  page: import('@playwright/test').Page,
-  label: RegExp,
-) {
+async function pickNeed(page: Page, label: RegExp) {
   await page.getByRole('button', { name: label }).click();
+  await page.getByRole('button', { name: /^continue$/i }).click();
+  await expect(page.getByPlaceholder(/3000|household income/i)).toBeVisible({
+    timeout: 30000,
+  });
 }
 
-async function advanceToResults(page: import('@playwright/test').Page) {
-  // Three-step wizard: pick need -> Continue -> household context -> View results.
-  // Selection never auto-navigates; each step has a single footer row.
-  const cont = page.getByRole('button', { name: /^continue$/i }).first();
-  if (await cont.isVisible().catch(() => false)) {
-    await cont.click();
+async function fillHousehold(
+  page: Page,
+  opts: {
+    income?: string;
+    size?: string;
+    household?: RegExp;
+    employment?: RegExp;
+    residency?: RegExp;
+  },
+) {
+  if (opts.income !== undefined) {
+    await page.getByPlaceholder(/3000|household income/i).fill(opts.income);
   }
-  const viewResults = page.getByRole('button', { name: /view results/i }).first();
-  if (await viewResults.isVisible().catch(() => false)) {
-    await viewResults.click();
+  if (opts.size !== undefined) {
+    await page.getByPlaceholder(/number of members/i).fill(opts.size);
+  }
+  for (const choice of [opts.household, opts.employment, opts.residency]) {
+    if (choice) {
+      const btn = page.getByRole('button', { name: choice });
+      await btn.click();
+      await expect(btn).toHaveAttribute('aria-pressed', 'true');
+    }
   }
 }
 
-test('FindSupport loads guided form without login', async ({ page }) => {
+async function viewResults(page: Page) {
+  await page.getByRole('button', { name: /view results/i }).click();
+  await expect(
+    page.getByText(/your assistance recommendations/i).first(),
+  ).toBeVisible({ timeout: 60000 });
+  await expect(page.locator('.sgsf-rec-card').first()).toBeVisible({
+    timeout: 60000,
+  });
+}
+
+async function recTitles(page: Page): Promise<string[]> {
+  return (await page.locator('.sgsf-rec-title').allTextContents()).map((t) =>
+    t.trim(),
+  );
+}
+
+async function cardFor(page: Page, name: RegExp) {
+  return page.locator('.sgsf-rec-card').filter({
+    has: page.locator('.sgsf-rec-title', { hasText: name }),
+  });
+}
+
+test('FindSupport loads guided form without login, parenting is its own need', async ({
+  page,
+}) => {
   requireBaseURL();
   await gotoSupport(page);
   for (const label of [
     /financial difficulties/i,
     /family or relationship/i,
-    /children and parenting/i,
+    /^parenting support$/i,
     /caregiving/i,
   ]) {
     await expect(page.getByRole('button', { name: label })).toBeVisible();
   }
-  // Step 1 shows need buttons only; household/income inputs appear on step 2.
+  // The old combined category is gone.
+  await expect(
+    page.getByRole('button', { name: /children and parenting/i }),
+  ).toHaveCount(0);
   await expect(
     page.getByText(/no login needed|nothing is stored/i).first(),
   ).toBeVisible();
+  // Progress indicator shows step 1 of 3.
+  await expect(page.getByText(/step 1 of 3/i)).toBeVisible();
 });
 
-test('financial need shows ComCare guidance and live SSO records', async ({
+test('selected need is marked pressed', async ({ page }) => {
+  requireBaseURL();
+  await gotoSupport(page);
+  const parenting = page.getByRole('button', { name: /^parenting support$/i });
+  await parenting.click();
+  await expect(parenting).toHaveAttribute('aria-pressed', 'true');
+  await expect(
+    page.getByRole('button', { name: /financial difficulties/i }),
+  ).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.getByText(/selected: parenting support/i)).toBeVisible();
+});
+
+test('parenting need ranks parenting schemes with indicative income notes', async ({
+  page,
+}) => {
+  test.setTimeout(120000);
+  requireBaseURL();
+  await gotoSupport(page);
+  await pickNeed(page, /^parenting support$/i);
+  await expect(page.getByText(/step 2 of 3/i)).toBeVisible();
+  // $2,000 / 4 people = $500 per person: within KidSTART's published tests
+  // ($2,500 household or $650 per capita), Singapore Citizen.
+  await fillHousehold(page, {
+    income: '2000',
+    size: '4',
+    household: /^family with children$/i,
+    employment: /^working$/i,
+    residency: /^singapore citizen$/i,
+  });
+  await viewResults(page);
+  // Disclaimer stays prominent on results.
+  await expect(
+    page.getByText(/not an official eligibility decision/i).first(),
+  ).toBeVisible();
+  await expect(page.getByText(/does not determine eligibility/i)).toBeVisible();
+  const titles = await recTitles(page);
+  // Parenting catalogue entries only (no ComCare / caregiving grants).
+  expect(titles.join(' | ')).toMatch(/KidSTART/);
+  expect(titles.join(' | ')).toMatch(/Baby Bonus/);
+  expect(titles.join(' | ')).toMatch(/Families for Life Parenting/);
+  expect(titles.join(' | ')).not.toMatch(/ComCare|Home Caregiving/);
+  // Ranked: KidSTART (income within published threshold) comes first.
+  expect(titles[0]).toMatch(/KidSTART/);
+  const kid = await cardFor(page, /KidSTART/);
+  await expect(kid.locator('.sgsf-pill')).toHaveText(/likely relevant/i);
+  await expect(kid.locator('.sgsf-rec-why')).toContainText(
+    /per-capita income appears to be about \$500, within the typical threshold of \$650/i,
+  );
+  await expect(kid.locator('.sgsf-rec-why')).toContainText(/indicative only/i);
+  // Family-support locations shown for parenting (FSC + FAM/SFP lists).
+  await waitForSupportData(page);
+  await expect(
+    page.getByText(/where to go: family service centres/i),
+  ).toBeVisible();
+});
+
+test('household income above a published threshold is flagged, not hidden', async ({
+  page,
+}) => {
+  test.setTimeout(120000);
+  requireBaseURL();
+  await gotoSupport(page);
+  await pickNeed(page, /^parenting support$/i);
+  // $6,000 / 2 = $3,000 per person: above KidSTART's tests.
+  await fillHousehold(page, { income: '6000', size: '2' });
+  await viewResults(page);
+  const kid = await cardFor(page, /KidSTART/);
+  await expect(kid).toHaveCount(1);
+  await expect(kid.locator('.sgsf-rec-why')).toContainText(
+    /appears to be about \$3,000, above the typical threshold of \$650/i,
+  );
+  await expect(kid.locator('.sgsf-pill')).toHaveText(/may not apply/i);
+  // Still listed with its official link (indicative, never a decision).
+  await expect(
+    kid.getByRole('link', { name: /official information: kidstart/i }),
+  ).toBeVisible();
+});
+
+test('financial need ranks on employment and residency; official link opens', async ({
   page,
 }) => {
   test.setTimeout(120000);
   requireBaseURL();
   await gotoSupport(page);
   await pickNeed(page, /financial difficulties/i);
-  await advanceToResults(page);
-  await waitForSupportData(page);
-  // Results screen must be reached before asserting cards (Next/View-results
-  // timing varies under load; a mid-run redeploy can also delay rendering).
-  await expect(
-    page.getByText(/potentially relevant support|your assistance recommendations/i).first(),
-  ).toBeVisible({ timeout: 60000 });
-  await expect(page.getByText(/comcare/i).first()).toBeVisible({
-    timeout: 60000,
+  await fillHousehold(page, {
+    employment: /^looking for work$/i,
+    residency: /^permanent resident$/i,
   });
-  // Live SSO data: office names + postal codes from data.gov.sg.
+  await viewResults(page);
+  const titles = await recTitles(page);
+  expect(titles.join(' | ')).toMatch(/ComCare Short-to-Medium-Term Assistance/);
+  // Jobseeker Support is for the unemployed (SC/PR): ranked first here.
+  expect(titles[0]).toMatch(/Jobseeker Support/i);
+  // Workfare is for Singapore Citizens who are working: flagged.
+  const wis = await cardFor(page, /Workfare/);
+  await expect(wis.locator('.sgsf-pill')).toHaveText(/may not apply/i);
+  await expect(wis.locator('.sgsf-rec-why')).toContainText(
+    /stated for Singapore Citizens/i,
+  );
+  // Live SSO data is listed for financial needs.
+  await waitForSupportData(page);
   await expect
     .poll(
       async () =>
-        /Social Service Office/i.test(
-          (await page.textContent('body')) ?? '',
-        ),
+        /Social Service Office/i.test((await page.textContent('body')) ?? ''),
       { timeout: 30000 },
     )
     .toBe(true);
-  // Official MSF ComCare link opens the verified guidance page (scoped to
-  // the results guidance link; the footer carries a separate ComCare link).
+  // Official SMTA page opens in a new tab.
+  const smta = await cardFor(page, /Short-to-Medium-Term/);
   const [popup] = await Promise.all([
-    page.waitForEvent('popup', { timeout: 10000 }),
-    page.getByRole('link', { name: /official msf comcare guidance/i }).click(),
+    page.waitForEvent('popup', { timeout: 15000 }),
+    smta.getByRole('link', { name: /official information/i }).click(),
   ]);
-  expect(popup.url()).toMatch(/msf\.gov\.sg\/what-we-do\/comcare/i);
+  expect(popup.url()).toMatch(/supportgowhere\.life\.gov\.sg/i);
   await popup.close();
+});
+
+test('missing household inputs show general results', async ({ page }) => {
+  test.setTimeout(120000);
+  requireBaseURL();
+  await gotoSupport(page);
+  await pickNeed(page, /financial difficulties/i);
+  await viewResults(page);
+  const why = await page.locator('.sgsf-rec-why').first().textContent();
+  expect(why ?? '').toMatch(/add household details in step 2/i);
+  await expect(page.locator('.sgsf-pill', { hasText: /may not apply/i })).toHaveCount(0);
+});
+
+test('"Find a nearby" opens the directory pre-filtered to the matching service type', async ({
+  page,
+}) => {
+  test.setTimeout(120000);
+  requireBaseURL();
+  await gotoSupport(page);
+  await pickNeed(page, /financial difficulties/i);
+  await viewResults(page);
+  await page
+    .getByRole('link', { name: /find a nearby social service office/i })
+    .first()
+    .click();
+  await page.waitForURL(/FindCentres/, { timeout: 30000 });
+  expect(page.url()).toMatch(/ServiceType=SSO/);
+  // Directory loads with the SSO type pre-selected from the deep link.
+  await expect(page.getByText(/type: sso/i).first()).toBeVisible({
+    timeout: 90000,
+  });
+  await expect(page.locator('.sgsf-card').first()).toContainText(
+    /social service office/i,
+    { timeout: 60000 },
+  );
 });
 
 test('family need shows live FSC and SFP records', async ({ page }) => {
   requireBaseURL();
   await gotoSupport(page);
   await pickNeed(page, /family or relationship/i);
-  await advanceToResults(page);
+  await viewResults(page);
   await waitForSupportData(page);
 });
 
@@ -102,46 +265,23 @@ test('caregiving need shows official referrals, no invented matches', async ({
   requireBaseURL();
   await gotoSupport(page);
   await pickNeed(page, /caregiving/i);
-  await advanceToResults(page);
-  // Caregiving shows official referrals (no location cards by design), so
-  // wait on recommendation content rather than dataset markers.
-  await expect(
-    page.getByText(/your assistance recommendations|potentially relevant support/i).first(),
-  ).toBeVisible({ timeout: 90000 });
-  // Recommendation cards render after GetSchemeRecommendations completes,
-  // which can lag the dataset lists that waitForSupportData keys on.
-  await expect(page.getByRole('link', { name: /sg enable/i })).toBeVisible({
-    timeout: 60000,
-  });
+  await viewResults(page);
+  const titles = await recTitles(page);
+  expect(titles.join(' | ')).toMatch(/Home Caregiving Grant/);
+  expect(titles.join(' | ')).toMatch(/Caregivers Training Grant/);
+  const sgEnable = page.getByRole('link', { name: /^sg enable/i }).first();
+  await expect(sgEnable).toBeVisible({ timeout: 60000 });
   const [popup] = await Promise.all([
     page.waitForEvent('popup', { timeout: 10000 }),
-    page.getByRole('link', { name: /sg enable/i }).click(),
+    sgEnable.click(),
   ]);
   expect(popup.url()).toMatch(/sgenable\.sg/i);
   await popup.close();
 });
 
-test('income and household inputs do not gate results', async ({ page }) => {
-  requireBaseURL();
-  await gotoSupport(page);
-  await pickNeed(page, /children and parenting/i);
-  // Step 2 inputs: recorded only, never used for eligibility.
-  await page.getByRole('button', { name: /^continue$/i }).click();
-  await page.getByPlaceholder(/3000|household income/i).waitFor({ timeout: 30000 });
-  await page
-    .getByRole('button', { name: /single adult/i })
-    .click();
-  await advanceToResults(page);
-  // Results still render: inputs are recorded, never used for eligibility.
-  await waitForSupportData(page);
-  await expect(page.getByText(/does not determine eligibility/i)).toBeVisible();
-});
-
 test('navigation between FindSupport and FindCentres', async ({ page }) => {
   requireBaseURL();
   await gotoSupport(page);
-  // Header nav anchors carry real hrefs but are not exposed under the
-  // link role in some renders; click by substring text and assert by URL.
   await page.getByText(/browse services/i).first().click();
   await waitForData(page);
   expect(page.url()).toMatch(/FindCentres/);

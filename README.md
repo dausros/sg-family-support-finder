@@ -61,55 +61,64 @@ need an account and have not been run; see `infra/README.md`.
 
 ## What the app does
 
+Public screens need no login. Staff use one admin screen.
+
 ### 1. Browse Support Services (`FindCentres`)
 
-- One directory of **94 records**: 55 Family Service Centres (FSC), 24
-  Social Service Offices (SSO) and 15 Strengthening Families Programme
-  locations (SFP), served from the CS cache.
-- Search by name, address or postal code, combined with an All / FSC /
-  SSO / SFP type filter, A–Z / Z–A sort and a Clear filters action.
-- Pagination at 10 per page, labelled `Showing X–Y of N`, with
-  First / Prev / numbered / Next / Last. It resets when the filter
-  changes.
-- Uniform cards with a type badge, name, address, postal code, contact
-  links and View details.
-- The `CentreDetailsPanel` drawer shows address, phone, email, an
-  interactive Leaflet/OpenStreetMap map with a marker, Get Directions and
-  Open in Google Maps. It closes with Esc, uses `role=dialog`, and
-  becomes a full-screen sheet on mobile.
-- Loading, empty, error-with-Retry and stale-data states. Results show
-  the cache timestamp (`Updated dd MMM yyyy, HH:mm`).
+- One directory of **94 records** from data.gov.sg, served from the CS cache:
+  - 55 Family Service Centres (FSC)
+  - 24 Social Service Offices (SSO)
+  - 15 Strengthening Families Programme locations (SFP)
+- **Search:** one full-width search bar with the Search button attached. It matches name, address or postal code.
+- **Filters:** two labelled dropdowns, **Service type** and **Sort by**. Each is backed by a Static Entity (`DirectoryServiceType`, `DirectorySortOrder`).
+  - "Clear filters" is a text link.
+  - Results show `Showing X–Y of N found · Updated …`.
+- **Pagination:** the **OutSystems UI Pagination** block, 10 per page. It resets when a filter changes.
+- **Cards:** type badge, name, address and contact links in one link colour, plus "View details".
+  - The `CentreDetailsPanel` drawer has a map (Leaflet/OpenStreetMap), Get directions, `role=dialog`, closes with Esc, and becomes a full-screen sheet on phones.
+- **States:** loading, empty, error-with-Retry and stale-data.
 
 ### 2. Find Support (`FindSupport`)
 
-A three-step wizard with explicit Continue / Back and no automatic
-navigation:
+A three-step wizard with explicit Next / Back and no automatic navigation.
 
-1. **Support need:** financial difficulties, family or relationship
-   difficulties, children and parenting, or caregiving / disability support.
-2. **Household details (optional):** monthly income, household size,
-   employment and residency. Income must be non-negative and household
-   size positive, and invalid input shows an inline message.
-3. **Recommendations:**
-   - Scheme cards from a static `SchemeCatalogue` entity in CS (8
-     schemes, checked against official pages on 16 Oct 2026), returned
-     by `GetSchemeRecommendations`. Each card shows why it may be
-     relevant, known conditions, what is missing from the user's answers,
-     what it provides, documents needed, how to apply and the official link.
-   - Matching live service locations (SSO for financial needs, FSC and SFP
-     for family needs) open the same details drawer.
-   - Caregiving shows official referrals (SG Enable, Enabling Guide) rather
-     than invented matches.
+1. **Support need:**
+   - financial
+   - family or relationships
+   - children and parenting
+   - caregiving / disability
+2. **Your household (all optional, one question at a time, "Skip the rest" available):**
+   - monthly income and household size (number inputs, numeric keypad)
+   - five category questions as **dropdowns backed by CS Static Entities**: household type, marital status, housing type, employment, residency
+   - every dropdown has a real `<label for>` and is 56px tall
+3. **Help for you:**
+   - **Scheme cards:** from the CS `SchemeCatalogue`, via `GetSchemeRecommendations`, which receives all the answers. Each card says why it may fit, what is still missing, what it gives, documents needed, how to apply, and links to the official page.
+   - **Answer chips** with a **Change answers** link.
+   - **Nearest centres:**
+     - Type a postal code to get the **3 closest Family Service Centres**, with straight-line distance, Call and Directions.
+     - Uses OneMap search (no key). Centres without coordinates are geocoded once and stored (`CachedCentre.Latitude/Longitude`).
+     - A bad or unknown postal code gets a plain-words message.
+   - **Keep or share:**
+     - **Share on WhatsApp** (`wa.me` link with a short plain-words summary and the app link).
+     - **Print**, with a print stylesheet: no buttons, no clipping, title and date.
 
-The household answers currently drive the "missing information" notes on
-each card. **Ranking schemes by income band, household size, employment and
-residency is in progress** on a separate branch, together with updated
-`findsupport.spec.ts` assertions. Today's spec still asserts that the
-household inputs do not gate results.
+Results are framed as **indicative**: the responsible agency decides eligibility. Nothing the public types is stored.
 
-Every result is framed as **indicative**: "Results are indicative only — the
-responsible agency decides eligibility." Nothing is stored, and no login
-is needed.
+### 3. Manage centres (`CentreAdmin`, staff only)
+
+- **Locked to the `CentreAdmin` role** (defined in CS). Logged-out visitors are sent to Login.
+- **Server-side check:** CS `Centre_CreateOrUpdate` and `Centre_SetActive` call `CheckCentreAdminRole()` themselves, so the protection does not rely on hidden UI.
+- Search, **Add**, **Edit**, and **Hide / Show** a centre. Nothing is deleted.
+  - Hidden centres drop out of Browse and nearest-centres.
+  - Admin-edited rows are flagged `IsManagedByAdmin`, so the daily data.gov.sg sync does not overwrite them.
+- To give someone access: Users app → the user → add role `CentreAdmin` (SGFamilySupport_CS).
+
+### Accessibility and languages
+
+- All public screens are in **English, Bahasa Melayu, 中文 and தமிழ்**, via the built-in translation table in `AccessBar`. There is also a text-size switch and a skip link.
+- 48px+ tap targets and plain words.
+- A green focus ring shows **only for keyboard focus**.
+- Look and feel follows the Singapore Government Design System: flat, 1px borders, 4px radius, one primary and one secondary button style. There is no gov masthead, because this is not an official site.
 
 ## Data sources
 
@@ -251,24 +260,26 @@ app. The two `[MOCKED]` specs abort the browser→OutSystems screen-action
 call to exercise the error/Retry path. They are labelled as mocks and are not
 evidence of server-side fallback.
 
-**Latest full run: 17 Oct 2026, serial, Chromium, against the live app.**
-The test code was not changed for this run.
+**Latest full run: 17 Oct 2026 20:22 SGT, Chromium, against the live app: 47 passed, 0 failed, 1 skipped.**
 
 | Spec | Passed | Failed | Covers |
 |---|---|---|---|
+| `admin.spec.ts` | 1 | 0 | CentreAdmin screen redirects to Login when logged out; logged-in add/hide/show (skipped without a test admin login) (1 skipped) |
+| `api-error-retry.mock.spec.ts` | 1 | 0 | [MOCKED] screen-action failure shows error + Retry |
 | `app-loads.spec.ts` | 2 | 0 | app loads, loading indicator resolves |
-| `real-records.spec.ts` | 1 | 0 | real FSC records from data.gov.sg render |
-| `search.spec.ts` | 2 | 0 | case-insensitive search by name/address, second independent term |
-| `no-results.spec.ts` | 1 | 0 | empty state for a gibberish query |
+| `centre-details-panel.spec.ts` | 5 | 0 | details drawer open/update/Escape, directions/contact targets, mobile sheet |
 | `contact-directions.spec.ts` | 1 | 0 | contact details and directions link |
-| `directory.spec.ts` | 4 | 0 | all three types (94 records), search + type filter, pagination with reset, sort reversal |
-| `centre-details-panel.spec.ts` | 5 | 0 | details drawer open/update/Escape, directions and contact targets, mobile full-screen sheet, opened from Find Support |
-| `findsupport.spec.ts` | 6 | 0 | wizard loads without login, per-need guidance + live SSO/FSC/SFP records, caregiving referrals, input neutrality, navigation |
-| `wizard.spec.ts` | 6 | 0 | explicit Continue/Back, household options, income validation, blank optionals |
-| `persistence-refresh.spec.ts` | 4 | 0 | cached timestamp stable across visits, <24 h freshness, no duplicates on reload/Retry, [MOCKED] channel fault + Retry |
-| `ux-responsive.spec.ts` | 7 | 0 | no horizontal overflow 320–1440 px on both screens, 390 px touch targets, keyboard reach, headings/labels/lang, skip link |
-| `api-error-retry.mock.spec.ts` | 1 | 0 | [MOCKED] screen-action failure shows error state, Retry recovers |
-| **Total** | **40** | **0** | 12 spec files, serial (`--workers=1`), 6 min 14 s |
+| `directory.spec.ts` | 4 | 0 | 94 records across 3 types, Service type dropdown + search, OSUI Pagination, Sort by dropdown |
+| `dropdowns.spec.ts` | 1 | 0 | category questions are labelled dropdowns and feed the ranking |
+| `findsupport.spec.ts` | 10 | 0 | 4 needs without login, one question per screen, ranking (KidSTART first for parenting, "May not apply" only on a published rule), real tel: links, skip-the-rest, language picker, bigger text |
+| `nearest.spec.ts` | 2 | 0 | bad/unknown postal code messages; 3 nearest sorted by distance with call + directions |
+| `no-results.spec.ts` | 1 | 0 | empty state for a gibberish query |
+| `persistence-refresh.spec.ts` | 4 | 0 | cached timestamp stable, <24 h freshness, no duplicates, [MOCKED] fault + Retry |
+| `real-records.spec.ts` | 1 | 0 | real FSC records from data.gov.sg render |
+| `search.spec.ts` | 2 | 0 | case-insensitive search by name/address |
+| `share-print.spec.ts` | 1 | 0 | WhatsApp link text, print view not clipped, no printed URLs, multi-page PDF |
+| `ux-responsive.spec.ts` | 7 | 0 | no horizontal overflow 320–1440 px, 390 px touch targets, keyboard reach, headings/labels/lang, skip link |
+| `wizard.spec.ts` | 4 | 0 | need selection doesn't auto-navigate, Next/Back keeps the selection, household dropdown, all optional answers skippable |
 
 Not covered by automated tests:
 - Server-side unit tests of CS logic (e.g. BDDFramework). Caching is

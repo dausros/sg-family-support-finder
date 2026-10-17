@@ -21,4 +21,14 @@ test('results can be shared on WhatsApp and printed', async ({ page, context }) 
   await page.emulateMedia({ media: 'print' });
   await expect(page.locator('.sgsf-share')).toBeHidden();
   await expect(page.locator('.sgsf-rec-card').first()).toBeVisible();
+  await expect(page.locator('.sgsf-print-title')).toBeVisible();
+  // Every card must flow onto the printed pages (no clipped 100vh wrapper) and no raw link URLs are printed.
+  const cards = await page.locator('.sgsf-rec-card').count();
+  const clipped = await page.evaluate(() => [...document.querySelectorAll('.active-screen, .layout, .main-content')].some((el) => getComputedStyle(el).overflow !== 'visible'));
+  expect(clipped).toBe(false);
+  const after = await page.evaluate(() => getComputedStyle(document.querySelector('.sgsf-rec-card a[href^="tel:"]')!, '::after').content);
+  expect(['none', 'normal', '']).toContain(after);
+  const pdf = await page.pdf({ format: 'A4' });
+  const pages = (pdf.toString('latin1').match(/\/Type\s*\/Page[^s]/g) || []).length;
+  expect(pages).toBeGreaterThanOrEqual(cards > 3 ? 2 : 1);
 });

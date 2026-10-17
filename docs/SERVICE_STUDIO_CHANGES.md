@@ -487,3 +487,9 @@ Owner's ask (17:18 SGT): build the recommended features (nearest centres, share 
 - Tests: new `dropdowns.spec.ts` (options come from the static entities, one visible dropdown per question, ≥48px, the answers reach the ranking: rental flat lifts ComLink+). `findsupport.spec.ts` and `wizard.spec.ts` updated for 7 questions and dropdowns. New `share-print.spec.ts` for F3. **Live suite 44/44.**
 - TrueChange (UI): 0 errors, 9 warnings (the same 9 by-design warnings).
 - Screenshot: `feat-1-dropdowns.png`.
+
+### F3 fix: Save as PDF / print was cut off (owner report 18:20 SGT; UI published 18:31 SGT)
+- **Cause:** the layout's `.active-screen.screen-container` is a fixed-height (100vh) scroll box with `overflow: hidden auto`, so print got 1 page and clipped the rest. The earlier print rule `a[href^="tel:"]::after { content: attr(href) }` printed raw `tel:` URLs.
+- **Fix (theme, one `@media print` block):** `html`, `body` and every layout wrapper get `height: auto; overflow: visible; position: static`. Header, nav, skip link, access bar, stepper, buttons, the share card and the nearest-centres search are hidden. Cards are full width with `break-inside: avoid`, call links print as plain bold text with `white-space: nowrap`, no URL printing (`a[href]::after { content: none }`), A4 page margins, 12pt body.
+- New print-only title on the results: "Support you may qualify for · 17 Oct 2026" (date from `CurrDateTime()`, translated).
+- **Checked** with Playwright `page.pdf()` at A4 portrait and landscape, from 390px and 1280px windows: 3 pages, all 7 scheme cards present, no URLs, phone numbers on one line. Page images were viewed: `feat-3-print-pdf-a4.png`, `feat-3-print-pdf-desktop.png`. `share-print.spec.ts` now also checks that no wrapper clips, that no URL is printed after call links, and that the PDF has more than one page.

@@ -439,3 +439,11 @@ All changes are in the SGFamilySupportFinder (UI) module. Validated 0 errors (11
 - `WizardStep2Household/IncomeInput`: `inputmode="numeric"` (was `decimal`), `pattern="[0-9]*"`, `autocomplete="off"` → number keypad on phones.
 - Published 0 errors (UI module). Live checks: http lands on https, framed copy hidden, referrer meta present, sweep of all screens 0 page errors.
 - Full findings: `docs/SECURITY_REVIEW.md`.
+
+
+### R7 O11 best-practice pass (17 Oct, 17:00–17:20 SGT)
+- FindCentres: new Data Action `GetDirectory` (one server call for the three lists, replaces 3 server calls in OnInitialize); `LoadDirectory` on screen OnReady and on Retry, with AllExceptions → "Failed to load services. Check your connection and tap Retry."; old `OnInitialize2` → `OnDirectoryFetched` (OnAfterFetch); `OnSearch2` → `OnSearch`.
+- CS: descriptions on 4 entities.
+- TrueChange UI warnings 11 → 9, 0 errors. Published CS then UI. Live: full suite 42/42, sweep 4 languages × 390/1280 0 page errors.
+- Mocked tests updated for the new data action endpoint.
+- Full checklist: `docs/O11_BEST_PRACTICES_REVIEW.md`.

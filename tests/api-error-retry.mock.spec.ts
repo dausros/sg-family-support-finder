@@ -24,6 +24,8 @@ const DATA_CALLS = [
   '**/screenservices/**/ActionGet*FamilyServiceCentres*',
   '**/screenservices/**/ActionGet*SocialServiceOffices*',
   '**/screenservices/**/ActionGet*StrengtheningFamiliesServices*',
+  // Since the GetDirectory refactor the three lists arrive in one Data Action call.
+  '**/screenservices/**/DataActionGetDirectory*',
 ];
 
 test('[MOCKED] api error shows labelled error state with retry', async ({

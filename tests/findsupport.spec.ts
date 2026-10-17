@@ -290,3 +290,42 @@ test('navigation between FindSupport and FindCentres', async ({ page }) => {
     page.getByRole('button', { name: /financial difficulties/i }),
   ).toBeVisible({ timeout: 20000 });
 });
+
+test('results show what to do next, scheme helplines and the urgent ComCare hotline', async ({
+  page,
+}) => {
+  test.setTimeout(120000);
+  requireBaseURL();
+  await gotoSupport(page);
+  await pickNeed(page, /financial difficulties/i);
+  await viewResults(page);
+  // Urgent-help strip (ComCare Hotline, from the verified scheme data).
+  await expect(page.getByText(/need help urgently\?/i)).toBeVisible();
+  await expect(
+    page.getByRole('link', { name: /call the comcare hotline at 1800 222 0000/i }),
+  ).toBeVisible();
+  const smta = await cardFor(page, /Short-to-Medium-Term/);
+  await expect(smta).toContainText(/what to do next:/i);
+  await expect(
+    smta.getByRole('link', { name: /call comcare hotline at 1800 222 0000/i }),
+  ).toBeVisible();
+});
+
+test('landing page states the problem and leads into Find Support', async ({
+  page,
+}) => {
+  requireBaseURL();
+  await page.goto(
+    screenUrl(process.env.APP_BASE_URL as string, 'FindCentres'),
+    { waitUntil: 'domcontentloaded' },
+  );
+  await expect(page.getByText(/not sure where to start\?/i).first()).toBeVisible({
+    timeout: 60000,
+  });
+  await expect(page.getByText(/spread across MSF, AIC, CPF/i)).toBeVisible();
+  await page.getByRole('link', { name: /find support for my family/i }).click();
+  await expect(
+    page.getByRole('button', { name: /financial difficulties/i }),
+  ).toBeVisible({ timeout: 60000 });
+  expect(page.url()).toMatch(/FindSupport/);
+});

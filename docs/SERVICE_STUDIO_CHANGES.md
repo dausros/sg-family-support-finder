@@ -257,5 +257,88 @@ Appended blocks, each starting with a guard rule (`.ro-theme-guard12`…`15`). M
   - family, caregiving and navigation
 - `tests/wizard.spec.ts`: selectors updated ("Parenting support"; the household choice is checked via `aria-pressed`).
 
-## Full-suite run
-To be filled in after the full Playwright run against the live app.
+---
+
+## Product pass (owner steer: "looks nice, functional for Singaporeans, real purpose")
+
+Published CS → UI, 2026-10-17, around 12:15 SGT. Validation stayed at 0 errors (CS 2 warnings, UI 17 warnings). Facts come only from `sgfsf-schemes-verified.json` (official pages, checked 2026-10-17).
+
+### PP-1 Landing (`FindCentres`): the problem, stated up front
+**What changed:**
+- **Page head (`sgsf-page sgsf-page-head`):** title "Not sure where to start? Find family support in under a minute." The subtitle explains the problem and spells out each acronym once: "Help in Singapore is spread across MSF, AIC, CPF, Social Service Offices (SSOs), Family Service Centres (FSCs) and Strengthening Families Programme (FAM) centres. Answer three questions to see what you may get and where to go. No login needed."
+- **Calls to action (`sgsf-hero-box` → `sgsf-journeys`):**
+  - Primary: **"Find support for my family"** → FindSupport (`btn btn-primary sgsf-journey sgsf-cta`).
+  - Secondary: **"Browse centres"**, which clears the filters (`btn sgsf-btn-secondary sgsf-journey sgsf-cta`).
+- **Old hero texts:** removed ("Find the right support, faster." and the duplicate blurb).
+- **Search row:** now opens with the label "Or browse every centre: search by name, street or postal code" (`sgsf-search-label`; no digits, so the results-count test still finds the count label). The search field is full width on mobile.
+
+**Why:** visitors immediately see who the app is for and the one thing to do next.
+
+**Verify in Studio:** FindCentres → MainContent: the 1st container has two texts; the 2nd container is the CTA row; the search container starts with a Text.
+
+**Verify in the app:** open `/FindCentres`; the headline and both buttons are visible above the fold at 390px and 1280px.
+
+### PP-2 Find Support intro
+**What changed:** the lead now reads "Help in Singapore is spread across many agencies and centres. Answer three quick questions to see schemes you may qualify for, what to do next and where to go. No login needed and nothing is stored."
+
+### PP-3 CS: helplines in the catalogue and the output
+**What changed:**
+- `SchemeCatalogue`: new attributes `HelplineName` (Text 80) and `HelplinePhone` (Text 20). They are filled only where the verified data gives a number:
+
+  | Code | Helpline |
+  |---|---|
+  | SMTA, LTA, IA | ComCare Hotline 1800 222 0000 |
+  | SSOAPP | Social Service Office line 1800 777 0000 |
+  | HCG, CTG | AIC Hotline 1800 650 6060 |
+  | FAM | Divorce Support and Family Counselling 1800 111 2222 |
+  | BABYBONUS | Baby Bonus hotline 1800 111 2222 |
+  | COMLINK | MSF ComLink+ line 1800 111 2222 |
+  | WIS | CPF Board 1800 227 1188 |
+  | JSS | SkillsFuture Jobseeker Support hotline 6669 7932 |
+
+  KidSTART, FFLP, FSC and ENABLE have no number, because the verified pages give none.
+- Public Structure `SchemeRecommendation`: new attributes `HelplineName` and `HelplinePhone`.
+- `GetSchemeRecommendations` → `ScoreScheme`: two new assignments copy them into `CurrentRec`.
+- The UI references were refreshed after the CS publish.
+
+**Verify in Studio:** `SchemeCatalogue` → Records → Helpline columns.
+
+### PP-4 Result cards: actionable next step and a call button
+**What changed:**
+- "How to apply" is renamed **"What to do next: …"** (`sgsf-rec-next`, bold). The text is the official how-to-apply wording.
+- A new line, "Helpline: <name>, <number>", appears when a number exists.
+- A new action, **"Call <number>"**, appears when a number exists:
+  - Style: `btn sgsf-btn-secondary sgsf-link-btn sgsf-tel`.
+  - `aria-label`: "Call <helpline name> at <number>".
+  - It opens `tel:<digits>` through `OpenSupportUrl`, the same pattern as the existing centre phone links.
+
+**Verify in the app:** on the financial results, the SMTA card shows "Call 1800 222 0000".
+
+### PP-5 Urgent-help strip on results
+**What changed:** a new container `sgsf-urgent` (`role=note`) sits between the results count and the cards. It reads "Need help urgently? Call the ComCare Hotline:" followed by a link "1800 222 0000" (`tel:18002220000`, `aria-label` "Call the ComCare Hotline at 1800 222 0000").
+
+The results order is now: heading → count → urgent strip → ranked cards → "Where to go" location lists.
+
+### PP-6 Visual polish
+- The primary CTA is now emerald with white text. It had been rendering as white text on pale green.
+- **Mobile:**
+  - The page title is 28px.
+  - The search field and button are full width.
+  - The header wraps cleanly.
+- **Theme blocks:** `.ro-theme-guard16`…`19`.
+
+### PP-7 Tests
+`tests/findsupport.spec.ts` gained two tests:
+- "results show what to do next, scheme helplines and the urgent ComCare hotline"
+- "landing page states the problem and leads into Find Support"
+
+### Not done (on purpose)
+- **Postal-code "near me" sort:** skipped. The directory has no geocoding of user input. A distance sort would need a OneMap call (a new integration), so it is not cheap.
+
+## Full-suite run (live app, after the product pass)
+`npx playwright test` with `--workers=2` and `APP_BASE_URL=…/SGFamilySupportFinder/FindCentres`: **46/46 passed**. That is the 44 original specs plus the 2 new findsupport tests.
+- The first full run had 2 failures in `persistence-refresh.spec.ts`. Cause: the new search label contained "94 centres", and the spec's count-label regex matched it.
+- Fix: the label was reworded on the app side; the other worker's spec was not touched.
+- After that, `persistence-refresh.spec.ts` + `app-loads.spec.ts` were re-run: 6/6 passed.
+
+Screenshots from the live app (390px and 1280px) are kept outside the repo: landing, step 1 (parenting), step 2, parenting results, financial results with the urgent strip, the SSO deep link, and the details panel.

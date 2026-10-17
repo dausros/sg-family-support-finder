@@ -432,3 +432,10 @@ All changes are in the SGFamilySupportFinder (UI) module. Validated 0 errors (11
 - Cause: the four language buttons in block `Common/AccessBar` were created with `IButton`, which comes with a default Text widget "Button"; the label text was added beside it instead of replacing it.
 - Fix: deleted those 4 default "Button" Text widgets. A model sweep of every screen and block (Text widgets reading "Button", "Link", "Text", "Container", "Expression", "Label", "Title", "Icon", `lbl_…` or `{0}`) found no others.
 - Published 0 errors. Live check at 390px: the menu reads English, Bahasa Melayu, 中文, தமிழ். Screenshot: `docs/screenshots/lang-menu-fixed.png`.
+
+
+### R6 Security pass (17 Oct, 16:45–17:00 SGT)
+- App start-up script (block `Common/AccessBar`, action `ApplySavedPrefs`) now: redirects plain `http://` to `https://`; hides the app and tries to open it at top level when it is loaded inside a frame (anti-clickjacking); adds `<meta name="referrer" content="strict-origin-when-cross-origin">`.
+- `WizardStep2Household/IncomeInput`: `inputmode="numeric"` (was `decimal`), `pattern="[0-9]*"`, `autocomplete="off"` → number keypad on phones.
+- Published 0 errors (UI module). Live checks: http lands on https, framed copy hidden, referrer meta present, sweep of all screens 0 page errors.
+- Full findings: `docs/SECURITY_REVIEW.md`.

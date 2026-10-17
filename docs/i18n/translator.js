@@ -22,7 +22,7 @@ if (!window.__sgsfI18n) {
     var src = rec ? rec.src : cur;
     var v = S.lang === "en" ? null : tr(src, S.lang);
     if (v == null) { if (rec) { n.nodeValue = rec.src; S.tx.delete(n); } return; }
-    if (cur !== v) n.nodeValue = v;
+    v = v.replace(/(\d) (?=\d)/g, "$1\u00a0"); if (cur !== v) n.nodeValue = v;
     S.tx.set(n, { src: src, set: v });
   };
   var doAttrs = function (el) {

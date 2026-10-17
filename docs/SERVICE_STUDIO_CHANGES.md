@@ -246,6 +246,7 @@ Appended blocks, each starting with a guard rule (`.ro-theme-guard12`…`15`). M
 - The scheme facts were verified on 2026-10-17. Re-check thresholds after policy updates; ComCare IA flexibility ends 31 Dec 2026, and Baby Bonus is moving to the SG Child Support Package.
 
 ## Tests changed on this branch
+- `docs/i18n/translator.js` carries the same `doText` line. The table file `docs/i18n/sgfsf-i18n.json` still holds the longer Tamil wording; the live table in the module has the short one.
 - `tests/findsupport.spec.ts` was rewritten for the new behaviour:
   - parenting is its own need
   - pressed state
@@ -380,3 +381,31 @@ Published live (UI module, 0 errors) after each step.
 - Tamil: slightly smaller button text so the big Call button and headings fit on one line at 390px.
 - Native translation import file prepared outside the repo (sgfsf-translations.xlsx, one sheet per locale, 416/423 texts filled) with Service Studio steps (Data tab → Multilingual Locales → Export / Import Language Resources).
 - Live check after publish, 4 languages × 390px + 1280px: 7 results and 9 `tel:` links on every run, 0 page errors, axe 0 violations on home, details, step 1, step 2 and results.
+
+## Round 4 (2026-10-17, ~15:40–16:00 SGT): Tamil call buttons, bigger-text header, tap targets, tests
+
+All changes are in the SGFamilySupportFinder (UI) module. Validated 0 errors (11 warnings) and published three times (15:48, 15:51, 15:55 SGT). LIB and CS were not changed.
+
+### R4-1 Tamil "Call" buttons fit on one line
+- Problem: in Tamil with **Bigger text** on, the green ComCare call button on the results page broke its phone number over two lines at 390px.
+- Translation table (ta): "ComCare-ஐ அழைக்கவும்" shortened to "ComCare அழைக்க" (same meaning, "Call ComCare").
+- Built-in translator (`AccessBar.ApplySavedPrefs` JavaScript node, function `doText`): translated text now joins digit groups with a non-breaking space, so a number such as 1800 222 0000 never splits across lines in BM / 中文 / தமிழ். English text is untouched. One line added before `if (cur !== v) n.nodeValue = v;`:
+  `v = v.replace(/(\d) (?=\d)/g, "$1\u00a0");`
+- Theme `Test` (CSS guard 28): Tamil call buttons use 15–16px text and slightly tighter padding; `a[href^="tel:"]` never breaks inside words.
+- Live check: every `tel:` button is one line (48px tall, no overflow) in Tamil with and without Bigger text; language round trip EN → TA → EN → BM → 中文 → TA keeps every label correct.
+
+### R4-2 Bigger text / Language buttons no longer wrap (Tamil)
+- CSS guard 28: header buttons `white-space: nowrap`; in Tamil they use 15px text and 10px padding so "Aa பெரிய எழுத்து" and "🌐 மொழி தமிழ்" each stay on one line with Bigger text on.
+
+### R4-3 Bigger tap targets for small links (elderly pass)
+- CSS guard 29: the "Edit your answers" link and the footer links (MSF ComCare, SG Enable, data.gov.sg dataset) are now at least 48px tall.
+
+### R4-4 Tests
+- `tests/centre-details-panel.spec.ts`: the v2 results page shows "Places that can help" as collapsed lists, so the test opens the first list before "View details".
+- `docs/i18n/translator.js` carries the same `doText` line. The table file `docs/i18n/sgfsf-i18n.json` still holds the longer Tamil wording; the live table in the module has the short one.
+- `tests/findsupport.spec.ts`, `tests/wizard.spec.ts`, `tests/ux-responsive.spec.ts`: updated for the one-question-per-screen flow (committed earlier in this round).
+- Full live suite after the last publish: **42 / 42 passed**.
+
+### Manual steps for the owner in Service Studio (optional)
+- The footer links **MSF ComCare**, **SG Enable** and **data.gov.sg dataset** have no destination (they render as `href="#"`). Set each Link's URL (Destination → External URL) to the official page, then publish.
+- When you move to OutSystems' own translations (Data tab → Multilingual Locales → Import Language Resources with sgfsf-translations.xlsx), the built-in table can stay as a fallback; native translations always win.

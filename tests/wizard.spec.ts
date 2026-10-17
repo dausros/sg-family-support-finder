@@ -1,96 +1,52 @@
 import { test, expect, Page } from '@playwright/test';
 import { requireBaseURL, screenUrl, waitForSupportData } from './helpers';
 
-const SUPPORT_URL = () =>
-  screenUrl(process.env.APP_BASE_URL as string, 'FindSupport');
+// Wizard v2 behaviour: explicit Next, one question per screen, optional answers.
+const SUPPORT_URL = () => screenUrl(process.env.APP_BASE_URL as string, 'FindSupport');
 
 async function gotoSupport(page: Page) {
   await page.goto(SUPPORT_URL(), { waitUntil: 'domcontentloaded' });
-  await expect(
-    page.getByRole('button', { name: /financial difficulties/i }),
-  ).toBeVisible({ timeout: 60000 });
-}
-
-async function toStep2(page: Page, need: RegExp = /family or relationship/i) {
-  await page.getByRole('button', { name: need }).click();
-  await page.getByRole('button', { name: /^continue$/i }).click();
-  await expect(
-    page.getByText(/household situation|monthly household income/i).first(),
-  ).toBeVisible({ timeout: 30000 });
+  await expect(page.getByRole('button', { name: /help with money/i })).toBeVisible({ timeout: 60000 });
 }
 
 test('selecting a need does not navigate automatically', async ({ page }) => {
   requireBaseURL();
   await gotoSupport(page);
   await page.getByRole('button', { name: /family or relationship/i }).click();
-  // Still on step 1: Continue is visible, household inputs are not.
-  await expect(page.getByRole('button', { name: /^continue$/i })).toBeVisible();
-  await expect(page.getByText(/selected: family/i)).toBeVisible();
-  await expect(page.getByText(/monthly household income/i)).toHaveCount(0);
+  await expect(page.getByText(/step 1 of 3/i)).toBeVisible();
+  await expect(page.locator('.sgsf-continue')).toBeVisible();
+  await expect(page.getByText(/question 1 of 5/i)).toHaveCount(0);
 });
 
-test('Continue advances, Back preserves the selection', async ({ page }) => {
+test('Next advances, Back returns to step 1 with the selection kept', async ({ page }) => {
   requireBaseURL();
   await gotoSupport(page);
-  await page.getByRole('button', { name: /children and parenting/i }).click();
-  await page.getByRole('button', { name: /^continue$/i }).click();
-  await expect(
-    page.getByText(/household situation|monthly household income/i).first(),
-  ).toBeVisible({ timeout: 30000 });
+  await page.getByRole('button', { name: /parenting support/i }).click();
+  await page.locator('.sgsf-continue').click();
+  await expect(page.getByText(/question 1 of 5/i)).toBeVisible({ timeout: 30000 });
   await page.getByRole('button', { name: /^back$/i }).first().click();
-  // Back on step 1: need options visible again, selection retained.
-  await expect(
-    page.getByRole('button', { name: /financial difficulties/i }),
-  ).toBeVisible({ timeout: 30000 });
-  await expect(page.getByText(/selected: children/i)).toBeVisible();
+  await expect(page.getByRole('button', { name: /parenting support/i })).toHaveAttribute('aria-pressed', 'true', { timeout: 30000 });
 });
 
 test('household option selects without submitting', async ({ page }) => {
   requireBaseURL();
   await gotoSupport(page);
-  await toStep2(page);
-  await page.getByRole('button', { name: /single adult/i }).click();
-  // No navigation: still on step 2 with View results available.
-  await expect(page.getByText(/selected household: single adult/i)).toBeVisible();
-  await expect(
-    page.getByRole('button', { name: /view results/i }),
-  ).toBeVisible();
+  await page.getByRole('button', { name: /family or relationship/i }).click();
+  await page.locator('.sgsf-continue').click();
+  for (let i = 0; i < 2; i++) await page.locator('.btn-primary:visible').last().click();
+  await expect(page.getByText(/question 3 of 5/i)).toBeVisible();
+  const single = page.getByRole('button', { name: /^single adult$/i });
+  await single.click();
+  await expect(single).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByText(/question 3 of 5/i)).toBeVisible();
 });
 
-test('non-numeric income is treated as unspecified', async ({ page }) => {
-  // Income never gates results (matches the original neutrality contract and
-  // the input prompt): free text proceeds; only negative numbers block.
+test('optional answers can all be skipped', async ({ page }) => {
   requireBaseURL();
   await gotoSupport(page);
-  await toStep2(page);
-  await page.getByPlaceholder(/3000|household income/i).fill('abc');
-  await page.getByRole('button', { name: /view results/i }).click();
+  await page.getByRole('button', { name: /family or relationship/i }).click();
+  await page.locator('.sgsf-continue').click();
+  await page.getByRole('button', { name: /skip the rest/i }).click();
+  await expect(page.locator('.sgsf-rec-card').first()).toBeVisible({ timeout: 60000 });
   await waitForSupportData(page);
-  await expect(
-    page.getByText(/potentially relevant support|your assistance recommendations/i).first(),
-  ).toBeVisible({ timeout: 60000 });
-});
-
-test('negative income blocks progress with a message', async ({ page }) => {
-  requireBaseURL();
-  await gotoSupport(page);
-  await toStep2(page);
-  await page.getByPlaceholder(/3000|household income/i).fill('-500');
-  await page.getByRole('button', { name: /view results/i }).click();
-  await expect(page.getByText(/cannot be negative/i).first()).toBeVisible({
-    timeout: 15000,
-  });
-  // Still on step 2, not on results.
-  await expect(page.getByRole('button', { name: /view results/i })).toBeVisible();
-});
-
-test('optional inputs can be left blank', async ({ page }) => {
-  requireBaseURL();
-  await gotoSupport(page);
-  await toStep2(page);
-  await page.getByRole('button', { name: /view results/i }).click();
-  await waitForSupportData(page);
-  await expect(
-    page.getByText(/potentially relevant support|your assistance recommendations/i).first(),
-  ).toBeVisible({ timeout: 60000 });
 });

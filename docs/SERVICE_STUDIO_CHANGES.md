@@ -493,3 +493,43 @@ Owner's ask (17:18 SGT): build the recommended features (nearest centres, share 
 - **Fix (theme, one `@media print` block):** `html`, `body` and every layout wrapper get `height: auto; overflow: visible; position: static`. Header, nav, skip link, access bar, stepper, buttons, the share card and the nearest-centres search are hidden. Cards are full width with `break-inside: avoid`, call links print as plain bold text with `white-space: nowrap`, no URL printing (`a[href]::after { content: none }`), A4 page margins, 12pt body.
 - New print-only title on the results: "Support you may qualify for · 17 Oct 2026" (date from `CurrDateTime()`, translated).
 - **Checked** with Playwright `page.pdf()` at A4 portrait and landscape, from 390px and 1280px windows: 3 pages, all 7 scheme cards present, no URLs, phone numbers on one line. Page images were viewed: `feat-3-print-pdf-a4.png`, `feat-3-print-pdf-desktop.png`. `share-print.spec.ts` now also checks that no wrapper clips, that no URL is printed after call links, and that the PDF has more than one page.
+
+### UX round from owner feedback #2-#6 (UI published 18:47-18:55 SGT)
+**Look and feel: Singapore Government Design System style (look only).** No gov masthead, crest or logo, because this is not an official site.
+- Flat surfaces, 1px light-grey borders, 4px radius, no shadows, gradients or pills.
+- The left-stripe callouts (`.sgsf-urgent`, `.sgsf-error`) are now full-border alerts. "Need help now?" is an info alert with an ⓘ icon, a light-blue background and a full border.
+- Type scale: H1 32/40, H2 24/32.
+
+**One button system**, in the theme (`/* sgsf UX batch */` block):
+- **Primary:** solid green `.btn-primary`, for the main action of each screen only.
+- **Secondary:** white with a 1px grey border and dark text, same height and radius as primary. Used for Back, Start again, Listen, Share on WhatsApp, Print, Find centres, How to apply, and the scheme cards' call buttons. Only the single urgent ComCare call stays primary.
+- **Tertiary:** text link. Used for Clear filters, Skip the rest, and the footer links.
+
+**Focus.** OSUI's yellow focus fill (`.has-accessible-features a:focus` → `--color-focus-outer`) is neutralised by setting the focus colour variables to transparent.
+- Mouse and tap clicks show nothing: `:focus:not(:focus-visible) { outline: none }`.
+- Keyboard focus shows a green ring offset by 2px, with no fill.
+- Headings and `tabindex="-1"` targets get no focus styling.
+- Verified: a keyboard-focused link shows a green ring and a transparent background.
+
+**Browse Services (FindCentres) screen.** Every control now does something distinct.
+- **Removed** the "Browse centres" button (`BrowseAllButton`). It led to the page you were already on. Its action `ClearFilters` stays, because Clear filters uses it.
+- The header's "Browse Services" is already a non-link "current page" label on this screen.
+- **Search** is full width with the Search button attached, 52px tall.
+- **Filters:** the hand-rolled chip and sort buttons were replaced with two labelled native Dropdowns: "Service type" and "Sort by".
+  - They are backed by two new UI-local Static Entities, `DirectoryServiceType` and `DirectorySortOrder` (Code + Label), loaded by screen aggregates At Start.
+  - OnChange calls the existing `SetServiceType` / `SetSortOrder` actions, so the filter logic is unchanged.
+  - "Clear filters" is a text link. The duplicate "Type: … · Sort: …" summary is kept for screen readers only.
+  - The OSUI ButtonGroup isn't referenced by this module (it would need Manage Dependencies), so a Dropdown was used, which is one of the OSUI-recommended patterns.
+- **Pagination:** the custom First/Prev/1-2-3/Next/Last pager was replaced with the **OutSystems UI `Pagination` block**.
+  - StartIndex = PageStart−1, MaxRecords = 10, TotalCount = TotalMatches.
+  - OnNavigate → `GoToPage(Trunc(NewStartIndex/10)+1)`.
+  - The current page uses the block's own selected state. This fixes the "4 turns yellow when I click 3" focus bug.
+- Footer links (MSF ComCare, SG Enable, data.gov.sg) have one consistent link style and an "(opens in a new tab)" accessible name. They open the right site in a new tab (`window.open(url, "_blank", "noopener")`).
+
+**Wizard (Find Support).**
+- Dropdown fix: the bordered select and its ▾ arrow are now the same box. The container and the select are both 100% of the form column, up to 520px (verified: select 520 = box 520 at 1280px; 326 = 326 at 390px).
+- Inputs and the Back/Next row share the same 520px column. Back and Next are vertically aligned (same top).
+- "Skip the rest and see results" moved to its own centred line below Back/Next, as a text link.
+- **Removed** the footer link "Browse all support places". It duplicated the header nav item "Browse Services".
+
+Screenshots (viewed): `ux-home-1280.png`, `ux-centres-p2-1280.png`, `ux-centres-p2-390.png`, `ux-filters-1280.png`, `ux-wizard-1280.png`, `ux-results-1280.png`, `ux-focus-1280.png`.

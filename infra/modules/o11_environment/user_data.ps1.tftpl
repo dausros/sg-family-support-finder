@@ -1,0 +1,23 @@
+<powershell>
+# Placeholder bootstrap for an OutSystems 11 ${role} (${environment}).
+# It prepares Windows only; it does NOT install or license OutSystems.
+# A platform administrator installs the Platform Server afterwards and points
+# the cache invalidation service at Amazon MQ (AMQPS 5671):
+#   ${mq_endpoints}
+
+$ErrorActionPreference = "Stop"
+
+# IIS + ASP.NET 4.x features commonly required by the Platform Server
+# (assumption: confirm against the OutSystems 11 system requirements and the
+# Platform Server installation checklist for your release).
+Install-WindowsFeature -Name Web-Server, Web-Asp-Net45, Web-Windows-Auth, Web-Mgmt-Console, Web-WebSockets, NET-Framework-45-Core, NET-WCF-HTTP-Activation45 -IncludeManagementTools
+
+# CloudWatch agent, configured from SSM Parameter Store.
+$msi = "$env:TEMP\amazon-cloudwatch-agent.msi"
+Invoke-WebRequest -Uri "https://s3.amazonaws.com/amazoncloudwatch-agent/windows/amd64/latest/amazon-cloudwatch-agent.msi" -OutFile $msi
+Start-Process msiexec.exe -ArgumentList "/i `"$msi`" /qn" -Wait
+& "C:\Program Files\Amazon\AmazonCloudWatchAgent\amazon-cloudwatch-agent-ctl.ps1" -a fetch-config -m ec2 -s -c "ssm:${cw_param}"
+
+New-Item -ItemType Directory -Force -Path "C:\o11" | Out-Null
+Set-Content -Path "C:\o11\role.txt" -Value "role=${role}`nenvironment=${environment}"
+</powershell>

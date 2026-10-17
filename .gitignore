@@ -29,3 +29,6 @@ Thumbs.db
 *credentials*.json
 secrets/
 service.json
+
+# Local OpenCode config (holds the live MCP URL) — use opencode.example.json
+opencode.json

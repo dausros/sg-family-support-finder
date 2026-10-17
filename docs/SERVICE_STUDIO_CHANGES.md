@@ -373,3 +373,10 @@ Published live (UI module, 0 errors) after each step.
 
 ### R3-5 Accessibility fixes from axe (live)
 - `label-content-name-mismatch` (serious) on the urgent call link, A+ and the big results Call button: fixed (labels removed or rebuilt so the visible text is the name).
+
+### R3-6 Refinements (live, 0 errors)
+- Translation table grew to 500 strings per language: the module's own native texts (error messages, "May not apply", directions/map links, loading and retry messages) are now covered too.
+- Wizard Back / Next buttons now line up; header nav links wrap instead of overflowing (Tamil).
+- Tamil: slightly smaller button text so the big Call button and headings fit on one line at 390px.
+- Native translation import file prepared outside the repo (sgfsf-translations.xlsx, one sheet per locale, 416/423 texts filled) with Service Studio steps (Data tab → Multilingual Locales → Export / Import Language Resources).
+- Live check after publish, 4 languages × 390px + 1280px: 7 results and 9 `tel:` links on every run, 0 page errors, axe 0 violations on home, details, step 1, step 2 and results.

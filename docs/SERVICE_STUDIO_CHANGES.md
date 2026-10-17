@@ -447,3 +447,32 @@ All changes are in the SGFamilySupportFinder (UI) module. Validated 0 errors (11
 - TrueChange UI warnings 11 → 9, 0 errors. Published CS then UI. Live: full suite 42/42, sweep 4 languages × 390/1280 0 page errors.
 - Mocked tests updated for the new data action endpoint.
 - Full checklist: `docs/O11_BEST_PRACTICES_REVIEW.md`.
+
+
+## Features round: `tab/features` (17 Oct 2026, from 17:35 SGT)
+
+Owner's ask (17:18 SGT): build the recommended features (nearest centres, share results, admin screen), turn category inputs into dropdowns, and make it look really good. Order: dropdowns → nearest centres → share/print → admin → polish.
+
+### F0 CS backend for all features (published 17:50 SGT, 0 errors, 0 warnings in CS)
+- **Static entities (public)** for every category choice: `HouseholdType`, `EmploymentStatus`, `ResidencyStatus`, `MaritalStatus`, `HousingType` (Id, Label, Order, Is_Active). Labels match the text that `GetSchemeRecommendations` already normalises, so the ranking logic did not need to change for the existing questions.
+- **`GetSchemeRecommendations`**: two new optional inputs, `MaritalStatus` and `HousingType` (default `""`, so existing callers are unaffected). They only add plain-words notes and small rank nudges where `sgfsf-schemes-verified.json` states the condition: FAM (divorcing/divorced families, marriage support), ComCare IA (enhanced IA is for people in public housing), ComLink+ (families in public rental flats). Compared with `Entities.SchemeCatalogue.<Code>`, no hard-coded text identifiers.
+- **Role `CentreAdmin` (public)**. Checked server-side with `CheckCentreAdminRole()` as the first node of every admin action; failure raises the role's own exception.
+- **`CachedCentre`** is now public (read-only) and has `IsActive` (default True), `IsManagedByAdmin` (default False), `LastEditedOn`.
+  - The data.gov.sg sync (`SyncCentresCache` and the refresh path in `GetCachedFamilyServiceCentres`) now deletes only non-admin rows, then calls the new private `RemoveOverriddenDatasetRows` (one SQL DELETE) so an admin's edited or hidden centre is never overwritten by the next sync.
+  - Both serving aggregates filter `IsActive = True`. The refresh path now serves from the cache after writing it (it used to return the raw upstream list, which would have ignored admin changes).
+- **`Centre_CreateOrUpdate(Centre)`** (public): role gate → trim and validate (name, address, 6-digit postal code, email format) → create (gives a unique centre number 900000+Id) or update; coordinates are cleared when the postal code changes so they get re-geocoded. Returns `Success` + plain-words `ErrorMessage`.
+- **`Centre_SetActive(CentreId, IsActive)`** (public): role gate → hide/show a centre. Nothing is deleted.
+- **OneMap**: REST integration `OneMapAPI.Search` (`/api/common/elastic/search`, no key), structures `OneMapSearchResponse`/`OneMapResult` (coordinates arrive as text → `TextToDecimal`).
+- **`GetNearestCentres(PostalCode)`** (public): validate 6 digits → OneMap lookup (must return the same postal code) → for each active centre, geocode once via private `Centre_Geocode` if it has no coordinates (saved, never fails the caller) → `GeoDistanceKm` → `ListSort` → top 3 (`NearbyCentre` list). Friendly messages for a bad format, an unknown postal code, and any failure (AllExceptions handler + `LogMessage`).
+- **`GeoDistanceKm`** (function): equirectangular distance (cos 1.35° = 0.9997), accurate to well under 0.1% at Singapore's size, and needs no trigonometry (O11 has no Sin/Cos).
+- All new and changed flows were laid out with the BFS layout pass.
+
+**Dependency note.** The Model API cannot add new cross-module references (`AddDependency` fails with `IModelServices.ResolveModuleSignature must be set first`; verified again today). The owner added the new CS elements to the UI module in Manage Dependencies.
+
+### F3 Share my results + print view (UI published 17:54 SGT)
+- `WizardStep3Results`: new "Keep or share these results" card with two 56px buttons.
+  - **Share on WhatsApp** → screen action `ShareOnWhatsApp`: builds a short plain-words summary of the top 5 results (scheme, agency, helpline), the "suggestions only" line and the app link, then opens `https://wa.me/?text=…` (URL-encoded in a JS node). Nothing is sent until the user presses send in WhatsApp.
+  - **Print or save as PDF** → screen action `PrintResults` (`window.print()`). Theme print styles hide the header, menus, buttons and the urgent strip, keep each card on one page, and print phone numbers next to call links.
+- New strings added to the built-in translation table (BM, 中文, தமிழ்) through a marked `/*sgsf-i18n-extra*/` block, so later features extend one block instead of editing the large dictionary.
+- Theme CSS lives in one marked `/* sgsf-features-css */` block at the end of the theme.
+- Live check (390px): WhatsApp opens with the summary text; button height 56px; 0 page errors. Screenshot: `feat-3-share.png`.

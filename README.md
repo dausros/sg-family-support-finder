@@ -12,7 +12,8 @@ is `docs/Low Code Engineer JD.pdf`.
 - Live app: https://personal-uu490uhn.outsystemscloud.com/SGFamilySupportFinder/
   (public, no login)
 - Modules: `SGFamilySupport_LIB` ← `SGFamilySupport_CS` ← `SGFamilySupportFinder`
-- Tests: Playwright, **40 passed / 0 failed** against the live app (17 Oct 2026)
+- Tests: Playwright, **47 passed / 0 failed / 1 skipped** against the live app (17 Oct 2026).
+  The skipped test is the logged-in admin flow, which needs a CentreAdmin test login.
 - Infrastructure: Terraform AWS reference for self-managed OutSystems 11 in `infra/`
 
 ## Submission and access
@@ -314,23 +315,23 @@ run.
 - The three data.gov.sg datasets are the authoritative public lists. Record
   counts (55 / 24 / 15) are as published in October 2026 and will drift.
 - Scheme content is a curated static catalogue, checked against official
-  pages on 16 Oct 2026. It needs periodic review because schemes and
+  pages on 17 Oct 2026. It needs periodic review because schemes and
   criteria change. It is guidance, not policy.
 - Anonymous access is right for a discovery tool, so no login is needed
   and nothing is stored.
-- English only.
+- The public screens are in English, Bahasa Melayu, 中文 and தமிழ். Only the
+  staff `/CentreAdmin` screen is English only.
 - Infrastructure assumptions (Amazon MQ, RDS for SQL Server, versions,
   sizing) are listed with sources in `infra/README.md`.
 
 ## Known limitations
 
-- Ranking schemes by household inputs is not merged yet (see Find Support
-  above).
 - The two timers exist only in the Service Studio module (see design
   decisions).
 - The FSC download-URL handoff uses a site property (see design decisions).
-- Leftover template role warnings remain on `Common/Login` and
-  `Common/InvalidPermissions`.
+- TrueChange shows UI 0 errors / 5 warnings, all by design: the large
+  translation script, 3 public read-only directory fetches on an anonymous
+  screen, and one On Ready data access. CS and LIB are 0 errors / 0 warnings.
 - No OAP export of the modules is committed yet.
 
 ## Development workflow

@@ -342,3 +342,34 @@ The results order is now: heading → count → urgent strip → ranked cards �
 - After that, `persistence-refresh.spec.ts` + `app-loads.spec.ts` were re-run: 6/6 passed.
 
 Screenshots from the live app (390px and 1280px) are kept outside the repo: landing, step 1 (parenting), step 2, parenting results, financial results with the urgent strip, the SSO deep link, and the details panel.
+
+
+## Round 3 (2026-10-17, ~14:40–15:10 SGT): languages that actually translate, one-row header, short hero
+
+Published live (UI module, 0 errors) after each step.
+
+### R3-1 Why BM / 中文 / தமிழ் stayed in English
+- The language buttons did switch the OutSystems locale (`SetCurrentLocale`), so the "Translated for convenience" note appeared.
+- But the three Multilingual Locales (`ms`, `zh-CN`, `ta`) had **no translated text**. OutSystems only takes translations through Service Studio's import (Data tab → Multilingual Locales). The Model API that the MCP uses cannot write a translated value (documented gap in the MCP skill), so it fell back to English.
+
+### R3-2 Fix: built-in translation table (works today)
+- `AccessBar` → `ApplySavedPrefs` (OnReady, runs on every screen) now installs a small translator (JavaScript node) with a table of 374 UI strings × 3 languages (`docs/i18n/sgfsf-i18n.json`).
+- It translates rendered English text, placeholders, `title` and `aria-label` in place, and keeps working when React re-renders (MutationObserver). Numbers are kept as placeholders, so "Question 2 of 5", amounts and phone numbers translate correctly.
+- Switching back to English restores the original text. `<html lang>` follows the language (for screen readers and Listen).
+- **Native first:** any text already in the target language (e.g. after a native translation import) is left untouched. So the native import can replace the table later with no code change.
+- Official names stay in English (ComCare, SupportGoWhere, Singpass, MSF, SSO, FSC, scheme names).
+- Accessibility: in a translated language, an `aria-label` that no longer contains the button's visible text is dropped, so the visible text names the control (WCAG 2.5.3 "label in name").
+- `ChooseLanguage` now also closes the menu and re-applies the table right away.
+
+### R3-3 Header redesigned (one clean row)
+- **"Aa Bigger text"** toggle (`aria-pressed`, ✓ when on). Replaces the separate A / A+ boxes.
+- **"🌐 Language ▾"** button that opens a 4-option menu (English / Bahasa Melayu / 中文 / தமிழ்). `aria-expanded`, current language marked ✓. Local variable `ShowLanguages`, action `ToggleLanguages`.
+- **"📞 Help now: 1800 222 0000"** — a tidy emerald `tel:` pill (full width on phones).
+- 48px targets; at 390px, Bigger text and Language share one row and Call sits under them.
+- Theme blocks `.ro-theme-guard24`, `.ro-theme-guard25`.
+
+### R3-4 Hero copy
+- "Not sure where to start?" + one line: "Answer three short questions to see help you may get and where to go." (The long paragraph listing MSF/AIC/CPF/SSOs/FSCs/FAM was removed.)
+
+### R3-5 Accessibility fixes from axe (live)
+- `label-content-name-mismatch` (serious) on the urgent call link, A+ and the big results Call button: fixed (labels removed or rebuilt so the visible text is the name).

@@ -533,3 +533,26 @@ Owner's ask (17:18 SGT): build the recommended features (nearest centres, share 
 - **Removed** the footer link "Browse all support places". It duplicated the header nav item "Browse Services".
 
 Screenshots (viewed): `ux-home-1280.png`, `ux-centres-p2-1280.png`, `ux-centres-p2-390.png`, `ux-filters-1280.png`, `ux-wizard-1280.png`, `ux-results-1280.png`, `ux-focus-1280.png`.
+
+### F2 Postal code → 3 nearest centres (UI 18:21, sort fix CS+UI 19:02 SGT)
+- New Block **`NearestCentres`** (MainFlow), placed on the results step above "Keep or share". It is self-contained.
+  - Labelled postal-code input: text with `inputmode=numeric`, `maxlength=6`, `autocomplete=postal-code`, so leading zeros survive. The "Find centres" button and loading text sit with it.
+  - Errors appear in a `role=alert` box. Results are in an `aria-live` region.
+  - Screen action `FindNearest`: client-side 6-digit check → CS `GetNearestCentres` → assigns. It has an AllExceptions handler with a friendly message.
+- Each result card shows the name, a distance badge ("0.4 km away"), the address, a **Call** link (`tel:`) and **Directions** (Google Maps directions in a new tab). A note explains the distance is a straight line.
+- **Bug found and fixed:** the first version always showed the same 3 centres, unsorted.
+  - **Cause 1:** `ListSort` on the record list did not reorder it. It was replaced with a sorted insert while building the list: `ListIndexOf(AllDistances, Current.DistanceKm > CurrentNearby.DistanceKm)` then `ListInsert`, or `ListAppend` when the new one is farthest.
+  - **Cause 2:** the UI was still running the old CS code ("Outdated Consumer"). After a CS publish, the UI is now refreshed (`omlRefreshReferences`) and republished.
+- Verified live:
+  - 560211 (Ang Mo Kio) → Allkin AMK 230 at 0.4 km, Allkin YCK at 0.9 km, REACH Sin Ming at 1.1 km.
+  - 730345 → Care Corner Woodlands at 0.0 km first.
+  - "12" → "Please type a 6-digit postal code…".
+  - 999999 → "We could not find postal code 999999…".
+- New `nearest.spec.ts` (bad and unknown codes; 3 results sorted ascending, nearest under 2 km, call + directions links). Screenshot: `feat-2-nearest.png`.
+
+### Tidy round (root review, 19:05 SGT)
+- Centre cards: every link has one colour (green, underlined), links are left-aligned with the text, and "View details" is in sentence case.
+- The card grid is the same width as the search bar and filter panel at 1280px (no overflow).
+- Results: the orphan "Edit" link is now a "Change answers" text link inline with the answer chips. The chips now also show the marital status and housing answers.
+- Print hides "Change answers" and "How to apply".
+- Browse tests rewritten for the dropdown filters and the OSUI Pagination. **Live suite 46/46** (44 + 2 nearest specs).

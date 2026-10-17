@@ -556,3 +556,21 @@ Screenshots (viewed): `ux-home-1280.png`, `ux-centres-p2-1280.png`, `ux-centres-
 - Results: the orphan "Edit" link is now a "Change answers" text link inline with the answer chips. The chips now also show the marital status and housing answers.
 - Print hides "Change answers" and "How to apply".
 - Browse tests rewritten for the dropdown filters and the OSUI Pagination. **Live suite 46/46** (44 + 2 nearest specs).
+
+### F4 Centre admin screen (UI 19:20 SGT)
+- New screen **`MainFlow/CentreAdmin`** (URL `/SGFamilySupportFinder/CentreAdmin`). **Screen role: `CentreAdmin`** (the CS role, referenced through Manage Dependencies). Anonymous and Registered are not ticked, so a logged-out visit goes to Login. Verified live.
+- **Server-side checks:** CS `Centre_CreateOrUpdate` and `Centre_SetActive` call `CheckCentreAdminRole()` and raise the role exception. Hiding the button is not the protection.
+  - The screen's `SaveCentre` and `SetCentreActive` actions have `SecurityException` handlers ("Only Centre Admins can change centres…") and `AllExceptions` handlers.
+- **Screen aggregate `GetCentres`** (At Start) on CS `CachedCentre`.
+  - Filter: name or street contains the search text, or the postal code equals it.
+  - Sorted by name. Shows hidden centres too, so they can be shown again.
+- **Add / Edit:** one form held in the local `EditCentre` (CachedCentre record).
+  - Fields: name, street, postal code (`inputmode=numeric`, `maxlength=6`), phone (`inputmode=tel`) and email (`inputmode=email`), each with a real `<label for>`.
+  - Validation (required fields, 6-digit postal code, geocoding the new postal code) stays in CS `Centre_CreateOrUpdate`. Its `ErrorMessage` shows in a `role=alert` box.
+- **Hide / Show** (`Centre_SetActive`). Nothing is deleted. Hidden centres drop out of Browse and nearest-centres, and are greyed in the admin list.
+- Each row shows "Shown/Hidden" plus "Edited by admin" (`IsManagedByAdmin`), so the nightly data.gov.sg sync doesn't overwrite admin edits.
+- Same header and nav as the public screens. 48px buttons. Row actions go full width at 390px.
+- This is a staff-only screen, so it is English only (not in the public translation table).
+- `admin.spec.ts`:
+  - The logged-out redirect is checked live.
+  - The add → save → hide → show flow runs when `SGFSF_ADMIN_USER` / `SGFSF_ADMIN_PASS` for a CentreAdmin test user are set. **Not run yet: no test admin account.**

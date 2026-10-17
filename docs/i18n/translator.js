@@ -1,5 +1,5 @@
 // Installed by AccessBar.ApplySavedPrefs (JavaScript node) in SGFamilySupportFinder.
-// DICT is the content of docs/i18n/sgfsf-i18n.json.
+// D is the content of docs/i18n/sgfsf-i18n.json.
 
 if (!window.__sgsfI18n) {
   var D = DICT;
@@ -41,7 +41,7 @@ if (!window.__sgsfI18n) {
     S.at.set(el, m);
   };
   S.rm = S.rm || new Set();
-  var norm = function (s) { return (s || "").replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim().toLowerCase(); };
+  var norm = function (s) { return (s || "").replace(/[^\p{L}\p{M}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim().toLowerCase(); };
   var fixLabels = function (root) {
     S.rm.forEach(function (el) {
       if (!el.isConnected) { S.rm.delete(el); return; }

@@ -17,16 +17,16 @@ test('combined directory serves all three service types', async ({ page }) => {
   const label = await countLabel(page);
   expect(label).toMatch(/of 94 found/);
   // Type filter narrows to each dataset with correct badges.
-  await page.getByRole('button', { name: /^sso$/i }).click();
+  await page.getByLabel('Service type').selectOption({ label: 'Social Service Offices (SSO)' });
   await expect(page.getByText(/of 24 found/i).first()).toBeVisible({
     timeout: 60000,
   });
   await expect(page.getByText(/^sso$/i).first()).toBeVisible();
-  await page.getByRole('button', { name: /^sfp$/i }).click();
+  await page.getByLabel('Service type').selectOption({ label: 'Strengthening Families Programme (SFP)' });
   await expect(page.getByText(/of 15 found/i).first()).toBeVisible({
     timeout: 60000,
   });
-  await page.getByRole('button', { name: /^all$/i }).click();
+  await page.getByLabel('Service type').selectOption({ label: 'All services' });
   await expect(page.getByText(/of 94 found/i).first()).toBeVisible({
     timeout: 60000,
   });
@@ -34,7 +34,7 @@ test('combined directory serves all three service types', async ({ page }) => {
 
 test('search combines with the type filter', async ({ page }) => {
   await gotoDirectory(page);
-  await page.getByRole('button', { name: /^fsc$/i }).click();
+  await page.getByLabel('Service type').selectOption({ label: 'Family Service Centres (FSC)' });
   await expect(page.getByText(/of 55 found/i).first()).toBeVisible({
     timeout: 60000,
   });
@@ -53,12 +53,13 @@ test('pagination pages through results and resets on filter change', async ({
   await expect(page.getByText(/showing 1–10 of 94 found/i).first()).toBeVisible({
     timeout: 60000,
   });
-  await page.getByRole('button', { name: /^next$/i }).click();
+  // OutSystems UI Pagination block: the last button is 'next page'.
+  await page.locator('.sgsf-pager button').last().click();
   await expect(page.getByText(/showing 11–20 of 94 found/i).first()).toBeVisible({
     timeout: 60000,
   });
   // Changing the filter resets to page 1.
-  await page.getByRole('button', { name: /^sso$/i }).click();
+  await page.getByLabel('Service type').selectOption({ label: 'Social Service Offices (SSO)' });
   await expect(page.getByText(/showing 1–10 of 24 found/i).first()).toBeVisible({
     timeout: 60000,
   });
@@ -71,10 +72,6 @@ test('sort order reverses the listing', async ({ page }) => {
   const cards = page.locator('.sgsf-card');
   await expect(cards.first()).toBeVisible({ timeout: 60000 });
   const firstAsc = await cards.first().textContent();
-  await page.getByRole('button', { name: /name z-a/i }).click();
-  await expect(page.getByText(/sort: name z-a/i).first()).toBeVisible({
-    timeout: 60000,
-  });
-  const firstDesc = await cards.first().textContent();
-  expect(firstDesc).not.toBe(firstAsc);
+  await page.getByLabel('Sort by').selectOption({ label: 'Name Z to A' });
+  await expect.poll(async () => cards.first().textContent(), { timeout: 60000 }).not.toBe(firstAsc);
 });

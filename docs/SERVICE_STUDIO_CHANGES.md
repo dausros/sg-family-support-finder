@@ -447,3 +447,135 @@ All changes are in the SGFamilySupportFinder (UI) module. Validated 0 errors (11
 - TrueChange UI warnings 11 → 9, 0 errors. Published CS then UI. Live: full suite 42/42, sweep 4 languages × 390/1280 0 page errors.
 - Mocked tests updated for the new data action endpoint.
 - Full checklist: `docs/O11_BEST_PRACTICES_REVIEW.md`.
+
+
+## Features round: `tab/features` (17 Oct 2026, from 17:35 SGT)
+
+Owner's ask (17:18 SGT): build the recommended features (nearest centres, share results, admin screen), turn category inputs into dropdowns, and make it look really good. Order: dropdowns → nearest centres → share/print → admin → polish.
+
+### F0 CS backend for all features (published 17:50 SGT, 0 errors, 0 warnings in CS)
+- **Static entities (public)** for every category choice: `HouseholdType`, `EmploymentStatus`, `ResidencyStatus`, `MaritalStatus`, `HousingType` (Id, Label, Order, Is_Active). Labels match the text that `GetSchemeRecommendations` already normalises, so the ranking logic did not need to change for the existing questions.
+- **`GetSchemeRecommendations`**: two new optional inputs, `MaritalStatus` and `HousingType` (default `""`, so existing callers are unaffected). They only add plain-words notes and small rank nudges where `sgfsf-schemes-verified.json` states the condition: FAM (divorcing/divorced families, marriage support), ComCare IA (enhanced IA is for people in public housing), ComLink+ (families in public rental flats). Compared with `Entities.SchemeCatalogue.<Code>`, no hard-coded text identifiers.
+- **Role `CentreAdmin` (public)**. Checked server-side with `CheckCentreAdminRole()` as the first node of every admin action; failure raises the role's own exception.
+- **`CachedCentre`** is now public (read-only) and has `IsActive` (default True), `IsManagedByAdmin` (default False), `LastEditedOn`.
+  - The data.gov.sg sync (`SyncCentresCache` and the refresh path in `GetCachedFamilyServiceCentres`) now deletes only non-admin rows, then calls the new private `RemoveOverriddenDatasetRows` (one SQL DELETE) so an admin's edited or hidden centre is never overwritten by the next sync.
+  - Both serving aggregates filter `IsActive = True`. The refresh path now serves from the cache after writing it (it used to return the raw upstream list, which would have ignored admin changes).
+- **`Centre_CreateOrUpdate(Centre)`** (public): role gate → trim and validate (name, address, 6-digit postal code, email format) → create (gives a unique centre number 900000+Id) or update; coordinates are cleared when the postal code changes so they get re-geocoded. Returns `Success` + plain-words `ErrorMessage`.
+- **`Centre_SetActive(CentreId, IsActive)`** (public): role gate → hide/show a centre. Nothing is deleted.
+- **OneMap**: REST integration `OneMapAPI.Search` (`/api/common/elastic/search`, no key), structures `OneMapSearchResponse`/`OneMapResult` (coordinates arrive as text → `TextToDecimal`).
+- **`GetNearestCentres(PostalCode)`** (public): validate 6 digits → OneMap lookup (must return the same postal code) → for each active centre, geocode once via private `Centre_Geocode` if it has no coordinates (saved, never fails the caller) → `GeoDistanceKm` → `ListSort` → top 3 (`NearbyCentre` list). Friendly messages for a bad format, an unknown postal code, and any failure (AllExceptions handler + `LogMessage`).
+- **`GeoDistanceKm`** (function): equirectangular distance (cos 1.35° = 0.9997), accurate to well under 0.1% at Singapore's size, and needs no trigonometry (O11 has no Sin/Cos).
+- All new and changed flows were laid out with the BFS layout pass.
+
+**Dependency note.** The Model API cannot add new cross-module references (`AddDependency` fails with `IModelServices.ResolveModuleSignature must be set first`; verified again today). The owner added the new CS elements to the UI module in Manage Dependencies.
+
+### F3 Share my results + print view (UI published 17:54 SGT)
+- `WizardStep3Results`: new "Keep or share these results" card with two 56px buttons.
+  - **Share on WhatsApp** → screen action `ShareOnWhatsApp`: builds a short plain-words summary of the top 5 results (scheme, agency, helpline), the "suggestions only" line and the app link, then opens `https://wa.me/?text=…` (URL-encoded in a JS node). Nothing is sent until the user presses send in WhatsApp.
+  - **Print or save as PDF** → screen action `PrintResults` (`window.print()`). Theme print styles hide the header, menus, buttons and the urgent strip, keep each card on one page, and print phone numbers next to call links.
+- New strings added to the built-in translation table (BM, 中文, தமிழ்) through a marked `/*sgsf-i18n-extra*/` block, so later features extend one block instead of editing the large dictionary.
+- Theme CSS lives in one marked `/* sgsf-features-css */` block at the end of the theme.
+- Live check (390px): WhatsApp opens with the summary text; button height 56px; 0 page errors. Screenshot: `feat-3-share.png`.
+
+### F1 Wizard choices as dropdowns (UI published 18:13 SGT)
+- Step 2 now asks **7** optional questions, one per screen: income, household size, then 5 choice questions, each a native **Dropdown** bound to a public Static Entity in CS (`GetHouseholdTypes`, `GetMaritalStatuses`, `GetHousingTypes`, `GetEmploymentStatuses`, `GetResidencyStatuses`: block aggregates fetched At Start, filtered `Is_Active = True`). Values and labels are the entity `Label`, so the existing Text variables and the CS ranking logic are unchanged.
+  - New: **marital status** (Q4) and **housing type** (Q5), passed through the block event `OnHouseholdSubmitted` → `FindSupport` → `WizardStep3Results` → `GetSchemeRecommendations(MaritalStatus, HousingType)`. They are also part of the results' query key, so changing an answer refreshes the results.
+  - The old button groups and their three `OnSelect*` screen actions were removed (no dead code). Income and household size stay number inputs (number keypad).
+  - Each dropdown has a real `<label for>` (Label widget with TargetWidget), 56px tall, 18px text, and a "Choose one (optional)" empty option. Hidden questions hide the whole dropdown container.
+- "Question N of 7" and the Listen text were updated for 7 questions. All new strings (questions, options, empty text) are in the translation table (BM, 中文, தமிழ்).
+- Why dropdowns everywhere (the brief allowed big buttons for 2–4 options): the owner asked for dropdowns, and one control type for every choice question keeps step 2 consistent. Native selects open the phone's large picker.
+- Tests: new `dropdowns.spec.ts` (options come from the static entities, one visible dropdown per question, ≥48px, the answers reach the ranking: rental flat lifts ComLink+). `findsupport.spec.ts` and `wizard.spec.ts` updated for 7 questions and dropdowns. New `share-print.spec.ts` for F3. **Live suite 44/44.**
+- TrueChange (UI): 0 errors, 9 warnings (the same 9 by-design warnings).
+- Screenshot: `feat-1-dropdowns.png`.
+
+### F3 fix: Save as PDF / print was cut off (owner report 18:20 SGT; UI published 18:31 SGT)
+- **Cause:** the layout's `.active-screen.screen-container` is a fixed-height (100vh) scroll box with `overflow: hidden auto`, so print got 1 page and clipped the rest. The earlier print rule `a[href^="tel:"]::after { content: attr(href) }` printed raw `tel:` URLs.
+- **Fix (theme, one `@media print` block):** `html`, `body` and every layout wrapper get `height: auto; overflow: visible; position: static`. Header, nav, skip link, access bar, stepper, buttons, the share card and the nearest-centres search are hidden. Cards are full width with `break-inside: avoid`, call links print as plain bold text with `white-space: nowrap`, no URL printing (`a[href]::after { content: none }`), A4 page margins, 12pt body.
+- New print-only title on the results: "Support you may qualify for · 17 Oct 2026" (date from `CurrDateTime()`, translated).
+- **Checked** with Playwright `page.pdf()` at A4 portrait and landscape, from 390px and 1280px windows: 3 pages, all 7 scheme cards present, no URLs, phone numbers on one line. Page images were viewed: `feat-3-print-pdf-a4.png`, `feat-3-print-pdf-desktop.png`. `share-print.spec.ts` now also checks that no wrapper clips, that no URL is printed after call links, and that the PDF has more than one page.
+
+### UX round from owner feedback #2-#6 (UI published 18:47-18:55 SGT)
+**Look and feel: Singapore Government Design System style (look only).** No gov masthead, crest or logo, because this is not an official site.
+- Flat surfaces, 1px light-grey borders, 4px radius, no shadows, gradients or pills.
+- The left-stripe callouts (`.sgsf-urgent`, `.sgsf-error`) are now full-border alerts. "Need help now?" is an info alert with an ⓘ icon, a light-blue background and a full border.
+- Type scale: H1 32/40, H2 24/32.
+
+**One button system**, in the theme (`/* sgsf UX batch */` block):
+- **Primary:** solid green `.btn-primary`, for the main action of each screen only.
+- **Secondary:** white with a 1px grey border and dark text, same height and radius as primary. Used for Back, Start again, Listen, Share on WhatsApp, Print, Find centres, How to apply, and the scheme cards' call buttons. Only the single urgent ComCare call stays primary.
+- **Tertiary:** text link. Used for Clear filters, Skip the rest, and the footer links.
+
+**Focus.** OSUI's yellow focus fill (`.has-accessible-features a:focus` → `--color-focus-outer`) is neutralised by setting the focus colour variables to transparent.
+- Mouse and tap clicks show nothing: `:focus:not(:focus-visible) { outline: none }`.
+- Keyboard focus shows a green ring offset by 2px, with no fill.
+- Headings and `tabindex="-1"` targets get no focus styling.
+- Verified: a keyboard-focused link shows a green ring and a transparent background.
+
+**Browse Services (FindCentres) screen.** Every control now does something distinct.
+- **Removed** the "Browse centres" button (`BrowseAllButton`). It led to the page you were already on. Its action `ClearFilters` stays, because Clear filters uses it.
+- The header's "Browse Services" is already a non-link "current page" label on this screen.
+- **Search** is full width with the Search button attached, 52px tall.
+- **Filters:** the hand-rolled chip and sort buttons were replaced with two labelled native Dropdowns: "Service type" and "Sort by".
+  - They are backed by two new UI-local Static Entities, `DirectoryServiceType` and `DirectorySortOrder` (Code + Label), loaded by screen aggregates At Start.
+  - OnChange calls the existing `SetServiceType` / `SetSortOrder` actions, so the filter logic is unchanged.
+  - "Clear filters" is a text link. The duplicate "Type: … · Sort: …" summary is kept for screen readers only.
+  - The OSUI ButtonGroup isn't referenced by this module (it would need Manage Dependencies), so a Dropdown was used, which is one of the OSUI-recommended patterns.
+- **Pagination:** the custom First/Prev/1-2-3/Next/Last pager was replaced with the **OutSystems UI `Pagination` block**.
+  - StartIndex = PageStart−1, MaxRecords = 10, TotalCount = TotalMatches.
+  - OnNavigate → `GoToPage(Trunc(NewStartIndex/10)+1)`.
+  - The current page uses the block's own selected state. This fixes the "4 turns yellow when I click 3" focus bug.
+- Footer links (MSF ComCare, SG Enable, data.gov.sg) have one consistent link style and an "(opens in a new tab)" accessible name. They open the right site in a new tab (`window.open(url, "_blank", "noopener")`).
+
+**Wizard (Find Support).**
+- Dropdown fix: the bordered select and its ▾ arrow are now the same box. The container and the select are both 100% of the form column, up to 520px (verified: select 520 = box 520 at 1280px; 326 = 326 at 390px).
+- Inputs and the Back/Next row share the same 520px column. Back and Next are vertically aligned (same top).
+- "Skip the rest and see results" moved to its own centred line below Back/Next, as a text link.
+- **Removed** the footer link "Browse all support places". It duplicated the header nav item "Browse Services".
+
+Screenshots (viewed): `ux-home-1280.png`, `ux-centres-p2-1280.png`, `ux-centres-p2-390.png`, `ux-filters-1280.png`, `ux-wizard-1280.png`, `ux-results-1280.png`, `ux-focus-1280.png`.
+
+### F2 Postal code → 3 nearest centres (UI 18:21, sort fix CS+UI 19:02 SGT)
+- New Block **`NearestCentres`** (MainFlow), placed on the results step above "Keep or share". It is self-contained.
+  - Labelled postal-code input: text with `inputmode=numeric`, `maxlength=6`, `autocomplete=postal-code`, so leading zeros survive. The "Find centres" button and loading text sit with it.
+  - Errors appear in a `role=alert` box. Results are in an `aria-live` region.
+  - Screen action `FindNearest`: client-side 6-digit check → CS `GetNearestCentres` → assigns. It has an AllExceptions handler with a friendly message.
+- Each result card shows the name, a distance badge ("0.4 km away"), the address, a **Call** link (`tel:`) and **Directions** (Google Maps directions in a new tab). A note explains the distance is a straight line.
+- **Bug found and fixed:** the first version always showed the same 3 centres, unsorted.
+  - **Cause 1:** `ListSort` on the record list did not reorder it. It was replaced with a sorted insert while building the list: `ListIndexOf(AllDistances, Current.DistanceKm > CurrentNearby.DistanceKm)` then `ListInsert`, or `ListAppend` when the new one is farthest.
+  - **Cause 2:** the UI was still running the old CS code ("Outdated Consumer"). After a CS publish, the UI is now refreshed (`omlRefreshReferences`) and republished.
+- Verified live:
+  - 560211 (Ang Mo Kio) → Allkin AMK 230 at 0.4 km, Allkin YCK at 0.9 km, REACH Sin Ming at 1.1 km.
+  - 730345 → Care Corner Woodlands at 0.0 km first.
+  - "12" → "Please type a 6-digit postal code…".
+  - 999999 → "We could not find postal code 999999…".
+- New `nearest.spec.ts` (bad and unknown codes; 3 results sorted ascending, nearest under 2 km, call + directions links). Screenshot: `feat-2-nearest.png`.
+
+### Tidy round (root review, 19:05 SGT)
+- Centre cards: every link has one colour (green, underlined), links are left-aligned with the text, and "View details" is in sentence case.
+- The card grid is the same width as the search bar and filter panel at 1280px (no overflow).
+- Results: the orphan "Edit" link is now a "Change answers" text link inline with the answer chips. The chips now also show the marital status and housing answers.
+- Print hides "Change answers" and "How to apply".
+- Browse tests rewritten for the dropdown filters and the OSUI Pagination. **Live suite 46/46** (44 + 2 nearest specs).
+
+### F4 Centre admin screen (UI 19:20 SGT)
+- New screen **`MainFlow/CentreAdmin`** (URL `/SGFamilySupportFinder/CentreAdmin`). **Screen role: `CentreAdmin`** (the CS role, referenced through Manage Dependencies). Anonymous and Registered are not ticked, so a logged-out visit goes to Login. Verified live.
+- **Server-side checks:** CS `Centre_CreateOrUpdate` and `Centre_SetActive` call `CheckCentreAdminRole()` and raise the role exception. Hiding the button is not the protection.
+  - The screen's `SaveCentre` and `SetCentreActive` actions have `SecurityException` handlers ("Only Centre Admins can change centres…") and `AllExceptions` handlers.
+- **Screen aggregate `GetCentres`** (At Start) on CS `CachedCentre`.
+  - Filter: name or street contains the search text, or the postal code equals it.
+  - Sorted by name. Shows hidden centres too, so they can be shown again.
+- **Add / Edit:** one form held in the local `EditCentre` (CachedCentre record).
+  - Fields: name, street, postal code (`inputmode=numeric`, `maxlength=6`), phone (`inputmode=tel`) and email (`inputmode=email`), each with a real `<label for>`.
+  - Validation (required fields, 6-digit postal code, geocoding the new postal code) stays in CS `Centre_CreateOrUpdate`. Its `ErrorMessage` shows in a `role=alert` box.
+- **Hide / Show** (`Centre_SetActive`). Nothing is deleted. Hidden centres drop out of Browse and nearest-centres, and are greyed in the admin list.
+- Each row shows "Shown/Hidden" plus "Edited by admin" (`IsManagedByAdmin`), so the nightly data.gov.sg sync doesn't overwrite admin edits.
+- Same header and nav as the public screens. 48px buttons. Row actions go full width at 390px.
+- This is a staff-only screen, so it is English only (not in the public translation table).
+- `admin.spec.ts`:
+  - The logged-out redirect is checked live.
+  - The add → save → hide → show flow runs when `SGFSF_ADMIN_USER` / `SGFSF_ADMIN_PASS` for a CentreAdmin test user are set. **Not run yet: no test admin account.**
+
+### Docs (20:30 SGT)
+- README "What the app does" rewritten for this round: dropdown filters, OSUI Pagination, 7-question wizard with Static Entity dropdowns, nearest centres, share/print, CentreAdmin screen and the role, accessibility. The testing table now matches the 17 Oct live run (47 passed, 0 failed, 1 skipped).
+- New `docs/ASSESSMENT_CHECKLIST.md`: every ask in the brief (last page of `docs/Low Code Engineer JD.pdf`) mapped to evidence, with ✅/⚠️.
+- IaC re-check on this branch (Terraform 1.9.8): `fmt -check` clean; `init -backend=false` + `validate` pass for `infra/` and `infra/bootstrap/`; tflint 0 issues; checkov 314 passed / 24 failed (all explained in `infra/README.md`). No plan or apply.

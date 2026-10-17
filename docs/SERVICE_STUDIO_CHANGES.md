@@ -384,7 +384,7 @@ Published live (UI module, 0 errors) after each step.
 
 ## Round 4 (2026-10-17, ~15:40–16:00 SGT): Tamil call buttons, bigger-text header, tap targets, tests
 
-All changes are in the SGFamilySupportFinder (UI) module. Validated 0 errors (11 warnings) and published three times (15:48, 15:51, 15:55 SGT). LIB and CS were not changed.
+All changes are in the SGFamilySupportFinder (UI) module. Validated 0 errors (11 warnings) and published five times (15:48, 15:51, 15:55, 16:00, 16:07 SGT; the 16:00 publish only re-added the guard 29 rule). LIB and CS were not changed.
 
 ### R4-1 Tamil "Call" buttons fit on one line
 - Problem: in Tamil with **Bigger text** on, the green ComCare call button on the results page broke its phone number over two lines at 390px.
@@ -404,7 +404,23 @@ All changes are in the SGFamilySupportFinder (UI) module. Validated 0 errors (11
 - `tests/centre-details-panel.spec.ts`: the v2 results page shows "Places that can help" as collapsed lists, so the test opens the first list before "View details".
 - `docs/i18n/translator.js` carries the same `doText` line. The table file `docs/i18n/sgfsf-i18n.json` still holds the longer Tamil wording; the live table in the module has the short one.
 - `tests/findsupport.spec.ts`, `tests/wizard.spec.ts`, `tests/ux-responsive.spec.ts`: updated for the one-question-per-screen flow (committed earlier in this round).
-- Full live suite after the last publish: **42 / 42 passed**.
+- Full live suite after the last publish: **42 / 42 passed** (run after the 15:51 publish).
+
+
+### R4-5 Call buttons on one line in every language (later the same round)
+- CSS guard 32 (Theme `Test`): the big ComCare call button on results uses 12px side padding; with **Bigger text** on it uses 18px text (it was 22px, so the number broke onto a second line in English and 中文); in BM it uses 15px (16px with Bigger text).
+- Live check after publish (16:07 SGT), results page at 390px: the call button is on one line in EN (Bigger text), BM (normal and Bigger text), 中文 (Bigger text) and தமிழ் (Bigger text).
+- Earlier live run after the 15:55 publish, 4 languages × 390px: 7 results and 9 `tel:` links each, 0 page errors, axe 0 violations.
+
+### Screenshots (390px, live app)
+- Tamil, Bigger text, results: `docs/screenshots/ta-390-big-results-call-oneline.png`
+- Tamil, Bigger text, header: `docs/screenshots/ta-390-big-home-header.png`
+- English, Bigger text, results: `docs/screenshots/en-390-big-results-call-oneline.png`
+- BM, results: `docs/screenshots/ms-390-results-call-oneline.png`
+- 中文, Bigger text, results: `docs/screenshots/zh-390-big-results-call-oneline.png`
+
+### Optional native translations
+- `docs/sgfsf-translations.xlsx`: one sheet per locale (ms, zh-CN, ta) plus a README sheet. In Service Studio: Data tab → Multilingual Locales → Import Language Resources, then publish.
 
 ### Manual steps for the owner in Service Studio (optional)
 - The footer links **MSF ComCare**, **SG Enable** and **data.gov.sg dataset** have no destination (they render as `href="#"`). Set each Link's URL (Destination → External URL) to the official page, then publish.

@@ -1,0 +1,3 @@
+[submodule "outsystems11-mcp-official"]
+	path = outsystems11-mcp-official
+	url = https://github.com/OutSystems/outsystems11-mcp.git

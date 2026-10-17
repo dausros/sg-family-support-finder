@@ -1,0 +1,12 @@
+# Test / QA: same shape as Dev; scale fe_min to 2 when you need to rehearse
+# multi-front-end behaviour (cache invalidation across the farm).
+test_environment = {
+  enabled                  = true
+  fe_instance_type         = "m6i.large"
+  fe_min                   = 1
+  fe_max                   = 2
+  fe_desired               = 1
+  controller_instance_type = "m6i.large"
+  mq_instance_type         = "mq.t3.micro"
+  mq_deployment_mode       = "SINGLE_INSTANCE"
+}

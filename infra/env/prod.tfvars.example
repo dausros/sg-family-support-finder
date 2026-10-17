@@ -1,0 +1,12 @@
+# Production: >= 2 front-ends across both AZs, Multi-AZ RabbitMQ cluster,
+# and (in database.tf) a dedicated Multi-AZ RDS instance.
+prod_environment = {
+  enabled                  = true
+  fe_instance_type         = "m6i.xlarge"
+  fe_min                   = 2
+  fe_max                   = 6
+  fe_desired               = 2
+  controller_instance_type = "m6i.xlarge"
+  mq_instance_type         = "mq.m5.large"
+  mq_deployment_mode       = "CLUSTER_MULTI_AZ"
+}

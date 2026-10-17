@@ -1,0 +1,69 @@
+name: Playwright (live app)
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_base_url:
+        description: "APP_BASE_URL: published app root or screen URL"
+        required: true
+        default: "https://personal-uu490uhn.outsystemscloud.com/SGFamilySupportFinder/"
+      grep:
+        description: "Optional --grep filter (blank = full suite)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: tests
+    env:
+      APP_BASE_URL: ${{ inputs.app_base_url }}
+      CI: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: tests/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      # Serial on purpose: the OutSystems personal environment throttles
+      # parallel cold loads.
+      - name: Run Playwright
+        env:
+          GREP: ${{ inputs.grep }}
+        run: |
+          if [ -n "$GREP" ]; then
+            npx playwright test --workers=1 --grep "$GREP"
+          else
+            npx playwright test --workers=1
+          fi
+
+      - name: Upload HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: tests/playwright-report/
+          retention-days: 14
+
+      - name: Upload traces of failures
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-test-results
+          path: tests/test-results/
+          retention-days: 7

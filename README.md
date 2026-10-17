@@ -1,213 +1,333 @@
 # SG Family Support Finder
 
-OutSystems 11 Reactive Web application that helps Singapore residents find publicly listed Family Service Centres from the Ministry of Social and Family Development (MSF) dataset on data.gov.sg. Users can search centres by name, address or postal code, view published contact details, and open directions.
+An OutSystems 11 Reactive Web app that helps people in Singapore find social
+services, family support and financial assistance. It brings three
+government open datasets (**94 service locations**) into one searchable
+directory, and adds a guided questionnaire that points people to
+potentially relevant schemes and the right type of service location.
 
-## MSF relevance
+Built for the GovTech / MSF Low Code Engineer technical assessment. The brief
+is `docs/Low Code Engineer JD.pdf`.
 
-MSF is Singapore's lead ministry for social and family policies, delivering services through Family Service Centres, Social Service Offices and partners. This directory surfaces the published Family Service Centre list so residents can find support near them.
+- Live app: https://personal-uu490uhn.outsystemscloud.com/SGFamilySupportFinder/
+  (public, no login)
+- Modules: `SGFamilySupport_LIB` ← `SGFamilySupport_CS` ← `SGFamilySupportFinder`
+- Tests: Playwright, **40 passed / 0 failed** against the live app (17 Oct 2026)
+- Infrastructure: Terraform AWS reference for self-managed OutSystems 11 in `infra/`
 
-## Dataset source and attribution
+## Submission and access
 
-- Dataset: Family Services (GEOJSON), MSF, via data.gov.sg
-- Dataset ID: `d_add23c06f7267e799185c79ccaa2099b`
-- Dataset page: https://data.gov.sg/datasets/d_add23c06f7267e799185c79ccaa2099b/view
-- Access pattern (poll-download): `GET https://api-open.data.gov.sg/v1/public/api/datasets/d_add23c06f7267e799185c79ccaa2099b/poll-download` returns `{code, data:{url}}`; the app then downloads the GeoJSON `FeatureCollection` from the returned URL.
-- Licence: Open Data Licence (free for personal or commercial use). Source: Ministry of Social and Family Development (2019), via data.gov.sg.
-- Verified record shape: `properties` (`OBJECTID`, `NAME`, `ADDRESSBLOCKHOUSENUMBER`, `ADDRESSSTREETNAME`, `ADDRESSFLOORNUMBER`, `ADDRESSUNITNUMBER`, `ADDRESSPOSTALCODE`, `TELEPHONE`, `EMAIL`, `DESCRIPTION`), `geometry.coordinates` as `[longitude, latitude]`. Example: `Lakeside Family Centre (Jurong West)`.
-
-## Implemented functionality (verified live 17 Oct 2026 — redesigned UI)
-
-Published: https://personal-uu490uhn.outsystemscloud.com/SGFamilySupportFinder/FindCentres (public, no login).
-
-- `FindCentres` is now a combined **Browse Support Services** directory (94
-  records: 55 FSC + 24 SSO + 15 SFP) served from the CS cache with
-  `Kind`-badged uniform cards in a responsive 2-column grid.
-- Search by name/address/postal code combines with a service-type segmented
-  filter (All/FSC/SSO/FSP), A–Z/Z–A sort, one-click Clear filters and an
-  active-filter summary. Live results: `lakeside`→2, `jurong`→5+FSC scope,
-  gibberish→empty state with recovery hint.
-- Real client-side pagination (10 per page, `Showing X–Y of N found`,
-  First/Prev/numbered/Next/Last with clamping and reset-on-filter). No
-  upstream calls on paginate/filter — cached retrieval only.
-- Each card: type badge, service name, composed address + postal code,
-  contact links (empty tel/mailto suppressed), prominent View details
-  opening the drawer. Detailed actions live in `CentreDetailsPanel`.
-- Branded header (Browse Services / Find Support, current-page indication,
-  no dead Login link), compact journey hero, single consolidated footer.
-- States: loading indicator, no-results message, API-error message with
-  working Retry. Character-encoding verified: MWS en-dashes render
-  correctly (Latin-1 mojibake repaired at the mapping layer).
-
-## FindSupport — guided support discovery (enhancement, verified live 17 Oct 2026)
-
-Published: https://personal-uu490uhn.outsystemscloud.com/SGFamilySupportFinder/FindSupport (public, no login, no user data stored).
-
-- Three-step wizard with explicit progression: (1) support need selection
-  (no auto-advance; visible selection echo + Continue), (2) one coherent
-  household form (situation options select without submitting, optional
-  income/size/employment/residency, single Back | View results footer,
-  non-negative income / positive household-size validation with an inline
-  message and no silent advance), (3) recommendations.
-- Live datasets: SSO (24) + FSC (55) + SFP (15) via CS actions
-  `GetSocialServiceOffices` / `GetStrengtheningFamiliesServices`
-  (request-scoped header handoff, no shared state); per-dataset failures
-  degrade to a visible warning instead of blocking the screen — verified
-  live during an upstream SFP 429 episode (55 FSC + 24 SSO rendered).
-- Financial → ComCare guidance + verified MSF link + SSO cards; family /
-  children → FSC + SFP cards with guarded contact links; caregiving →
-  SG Enable + Enabling Guide referrals only (no invented matches).
-  Wording is "potentially relevant" throughout; no eligibility claims.
-- Bidirectional nav with `FindCentres`; `SupportLocation` shared contract
-  in LIB; Playwright `findsupport.spec.ts` (6 tests).
-
-## Architecture (three modules)
-
-Dependency direction: `SGFamilySupport_LIB` ← `SGFamilySupport_CS` ← `SGFamilySupportFinder` (Finder also references LIB directly for contracts). No persistent Entities, no circular dependencies.
-
-| Module (type) | Owns |
+| What | Where |
 |---|---|
-| `SGFamilySupport_LIB` (Library) | Shared `FamilyServiceCentre` + `SupportLocation` Structures as public contracts; no logic, REST, or UI |
-| `SGFamilySupport_CS` (Service) | `DataGovSG` REST (FSC poll/download + `OnBeforeRequest` full-URL override; SSO/SFP poll/download via request-scoped header handoff), CS-local `GeoJSONDownloadUrl` site property (FSC path), GeoJSON DTO Structures, public live getters `GetFamilyServiceCentres` / `GetSocialServiceOffices` / `GetStrengtheningFamiliesServices` (`CentreList`/`LocationList`, `Success`, `ErrorMessage`), **plus the persistence layer below** |
-| `SGFamilySupportFinder` (Reactive Web) | `FindCentres` screen (local `ForEach` filter) + `FindSupport` guided screen (category matching, local lists, partial-failure warnings), `OnInitialize` fetch chains calling the cached CS getters, `OpenExternalUrl`/`OpenSupportUrl` links. No REST consumption, no backend logic, no duplicate contracts |
+| OutSystems app (Browse) | https://personal-uu490uhn.outsystemscloud.com/SGFamilySupportFinder/FindCentres |
+| OutSystems app (Find Support) | https://personal-uu490uhn.outsystemscloud.com/SGFamilySupportFinder/FindSupport |
+| Source repo | `dausros/sg-family-support-finder` (private; reviewers need to be added as collaborators) |
+| Tests | `tests/`, how to run below |
+| Infrastructure as code | `infra/`, see `infra/README.md` |
+| CI | `.github/workflows/` (Terraform checks on push/PR; Playwright on manual dispatch) |
 
-## Persistence and caching (verified live 16 Oct 2026)
+Both screens are anonymous, so reviewers can use the app without an
+account. Inspecting the modules in Service Studio needs access to the
+OutSystems personal environment, which the owner grants separately.
 
-`SGFamilySupport_CS` stores the three datasets in persistent Entities so
-repeat visits serve stored data without upstream calls:
+### Run the tests
 
-- Entities: `CachedCentre` (55 FSC rows), `CachedOffice` (24 SSO rows),
-  `CachedProgrammeSite` (15 SFP rows) — each keyed by the dataset `OBJECTID`
-  plus a `SyncStatus` row per dataset (`Dataset`, `LastSuccess`,
-  `LastAttempt`, `RecordCount`, `LastError`).
-- Sync: `SyncCentresCache` / `SyncOfficesCache` / `SyncProgrammeCache`
-  (full replace per run — delete-all then bulk insert — so reruns are
-  idempotent; each has its own exception handler that records the error in
-  `SyncStatus` and keeps last-known-good rows), orchestrated by input-less
-  `SyncDatasetCaches` (one dataset's failure never clears the others).
-- Serving: public `GetCachedFamilyServiceCentres` /
+```bash
+cd tests
+npm ci
+npx playwright install --with-deps chromium
+APP_BASE_URL="https://personal-uu490uhn.outsystemscloud.com/SGFamilySupportFinder/" \
+  npx playwright test --workers=1
+npx playwright show-report        # HTML report
+```
+
+`APP_BASE_URL` can be the app root or a screen URL, because the helpers
+resolve `FindCentres` / `FindSupport` from either. Run serially: the
+personal environment throttles parallel cold loads. In GitHub, run the
+**Playwright (live app)** workflow with the `app_base_url` input. It uploads
+the HTML report as an artifact.
+
+### Run the Terraform checks
+
+```bash
+cd infra
+terraform init -backend=false
+terraform fmt -check -recursive
+terraform validate
+```
+
+No AWS credentials are needed for these. `terraform plan` and `apply`
+need an account and have not been run; see `infra/README.md`.
+
+## What the app does
+
+### 1. Browse Support Services (`FindCentres`)
+
+- One directory of **94 records**: 55 Family Service Centres (FSC), 24
+  Social Service Offices (SSO) and 15 Strengthening Families Programme
+  locations (SFP), served from the CS cache.
+- Search by name, address or postal code, combined with an All / FSC /
+  SSO / SFP type filter, A–Z / Z–A sort and a Clear filters action.
+- Pagination at 10 per page, labelled `Showing X–Y of N`, with
+  First / Prev / numbered / Next / Last. It resets when the filter
+  changes.
+- Uniform cards with a type badge, name, address, postal code, contact
+  links and View details.
+- The `CentreDetailsPanel` drawer shows address, phone, email, an
+  interactive Leaflet/OpenStreetMap map with a marker, Get Directions and
+  Open in Google Maps. It closes with Esc, uses `role=dialog`, and
+  becomes a full-screen sheet on mobile.
+- Loading, empty, error-with-Retry and stale-data states. Results show
+  the cache timestamp (`Updated dd MMM yyyy, HH:mm`).
+
+### 2. Find Support (`FindSupport`)
+
+A three-step wizard with explicit Continue / Back and no automatic
+navigation:
+
+1. **Support need:** financial difficulties, family or relationship
+   difficulties, children and parenting, or caregiving / disability support.
+2. **Household details (optional):** monthly income, household size,
+   employment and residency. Income must be non-negative and household
+   size positive, and invalid input shows an inline message.
+3. **Recommendations:**
+   - Scheme cards from a static `SchemeCatalogue` entity in CS (8
+     schemes, checked against official pages on 16 Oct 2026), returned
+     by `GetSchemeRecommendations`. Each card shows why it may be
+     relevant, known conditions, what is missing from the user's answers,
+     what it provides, documents needed, how to apply and the official link.
+   - Matching live service locations (SSO for financial needs, FSC and SFP
+     for family needs) open the same details drawer.
+   - Caregiving shows official referrals (SG Enable, Enabling Guide) rather
+     than invented matches.
+
+The household answers currently drive the "missing information" notes on
+each card. **Ranking schemes by income band, household size, employment and
+residency is in progress** on a separate branch, together with updated
+`findsupport.spec.ts` assertions. Today's spec still asserts that the
+household inputs do not gate results.
+
+Every result is framed as **indicative**: "Results are indicative only — the
+responsible agency decides eligibility." Nothing is stored, and no login
+is needed.
+
+## Data sources
+
+All three come from data.gov.sg under the Singapore Open Data Licence,
+published by the Ministry of Social and Family Development.
+
+| Dataset | Records | Used for |
+|---|---|---|
+| Family Services (FSC), `d_add23c06f7267e799185c79ccaa2099b` | 55 | Directory, family needs |
+| Social Service Offices | 24 | Directory, financial needs |
+| Strengthening Families Programme locations | 15 | Directory, family needs |
+
+Retrieval follows data.gov.sg's poll-download pattern:
+`GET https://api-open.data.gov.sg/v1/public/api/datasets/<id>/poll-download`
+returns `{code, data: {url}}`, and the app downloads the GeoJSON
+`FeatureCollection` from the returned signed S3 URL. Postal codes are kept as
+Text so leading zeros survive. GeoJSON `coordinates` arrive as
+`[longitude, latitude]`.
+
+## Architecture
+
+```
+SGFamilySupport_LIB  (Library)      shared Structures / contracts, no logic
+        ▲
+SGFamilySupport_CS   (Service)      REST integration, entities, sync, caching,
+        ▲                           scheme catalogue, public server actions
+SGFamilySupportFinder (Reactive)    screens, blocks, navigation, forms, map
+```
+
+| Module | Owns |
+|---|---|
+| `SGFamilySupport_LIB` | Public Structures, e.g. `FamilyServiceCentre` and `SupportLocation` (the contract the UI and CS share). No logic, REST or UI. |
+| `SGFamilySupport_CS` | The `DataGovSG` REST client (poll-download + GeoJSON download), GeoJSON DTO Structures and mapping. **Persistent entities** `CachedCentre`, `CachedOffice`, `CachedProgrammeSite` and `SyncStatus`, plus the static `SchemeCatalogue`. Sync actions, cache-first public getters and `GetSchemeRecommendations`. |
+| `SGFamilySupportFinder` | `FindCentres` and `FindSupport` screens and the reusable `CentreDetailsPanel` block (Leaflet map). Client-side filtering, sort and pagination. Calls only public CS actions; no REST, no business rules. |
+
+### Persistence and caching
+
+- **Entities:** `CachedCentre` (55), `CachedOffice` (24),
+  `CachedProgrammeSite` (15), keyed by dataset `OBJECTID`, plus one
+  `SyncStatus` row per dataset (`LastSuccess`, `LastAttempt`,
+  `RecordCount`, `LastError`).
+- **Sync:** `SyncCentresCache` / `SyncOfficesCache` / `SyncProgrammeCache`
+  each do a full replace (delete all, then bulk insert). Each has its own
+  exception handler that records the error and keeps the last-known-good
+  rows. `SyncDatasetCaches` orchestrates them so one dataset's failure
+  never clears another.
+- **Serving:** `GetCachedFamilyServiceCentres` /
   `GetCachedSocialServiceOffices` /
-  `GetCachedStrengtheningFamiliesServices` (same list outputs plus
-  `LastSynced`, `FromCache`, `StaleWarning`). Fresh cache (< 24 h old with
-  rows) is served with zero upstream calls; otherwise the action
-  refresh-through-fetches live, replaces the cache and updates the status;
-  if upstream fails and cached rows exist, they are returned with
-  `StaleWarning = "Live data is unavailable. Showing last updated records."`
-  instead of an error. The UI renders `LastSynced` as
-  `· Updated dd MMM yyyy, HH:mm` next to the results count.
-- Timers (created in Service Studio — the MCP merge on 11.55.92 rejects the
-  newer timer-schedule feature, so timers are Studio-authored, not
-  model-API-authored): `SeedDatasetCache` (on publish) and
-  `RefreshDatasetCache` (daily), both calling `SyncDatasetCaches` with a
-  20-minute timeout. Even if a timer never fires, the first screen load
-  self-seeds the cache through refresh-through.
-- Data fidelity: full Oct 2026 scans of all three datasets show no mojibake
-  or control characters; the only non-ASCII content is legitimate en-dashes
-  in MWS centre names, which persist and render end-to-end.
+  `GetCachedStrengtheningFamiliesServices` return the list plus
+  `LastSynced`, `FromCache` and `StaleWarning`.
+  - If the cache is under 24 h old and has rows, it is served with **zero
+    upstream calls**.
+  - Otherwise the getter fetches live, refreshes the cache and returns
+    the new rows.
+  - If upstream fails and rows exist, the getter returns them with "Live
+    data is unavailable. Showing last updated records."
+- **Timers:** `SeedDatasetCache` (on publish) and `RefreshDatasetCache`
+  (daily) call `SyncDatasetCaches`. If a timer never fires, the first page
+  load seeds the cache anyway.
 
-## REST integration
+## Design decisions and trade-offs
 
-Two-step retrieval in `GetFamilyServiceCentres`:
-1. `GET` poll-download endpoint → require `code = 0` and a download URL
-   starting with `https://s3.ap-southeast-1.amazonaws.com/` containing the
-   dataset path (full signed query string preserved verbatim; nothing
-   hardcoded). Failures return `Success = False` with a retryable message.
-2. The signed URL is handed to the `DownloadGeoJSON` REST method via the
-   `GeoJSONDownloadUrl` site property; a documented `OnBeforeRequest`
-   callback replaces `BaseURL` with that exact URL (other calls pass
-   through untouched; no credentials forwarded) → parse GeoJSON
-   `FeatureCollection.features` → map each feature to `FamilyServiceCentre`
-   (postal code kept as Text; `coordinates[0]`→Longitude, `[1]`→Latitude;
-   empty feature list → no-results state).
-3. Client `OnSearch` filters the fetched list locally with an explicit
-   `ForEach` + `ListAppend` into a separate result list (the client
-   `ListFilter` action cannot scope per-row `Current` references — verified
-   against the shipped runtime), plus an `OnInitialize` exception handler so
-   transport failures reach the error/Retry UI instead of hanging on load.
+**24-hour cache TTL.** The MSF datasets change rarely (centres open,
+move or close a few times a year), while data.gov.sg throttles bursts with
+HTTP 429. A daily refresh plus a 24 h freshness window keeps page loads at
+zero upstream calls and data at most a day old. A shorter TTL would add
+rate-limit exposure for no user-visible gain. If MSF published
+change notifications, event-driven refresh would beat polling.
 
-## Structures and server actions (as published)
+**Full-replace sync.** Each dataset is under 60 rows, so delete-all plus
+bulk insert is simpler and more obviously correct than diffing. It is
+idempotent on rerun, and removals upstream disappear locally. The cost is
+a brief window inside the sync transaction and no change history. At
+thousands of rows, an upsert keyed on `OBJECTID` with soft-deletes would
+be the right move.
 
-- `FamilyServiceCentre`: `CentreId` Integer, `CentreName`/`Address`/`PostalCode`/`Telephone`/`Email` Text, `Latitude`/`Longitude` Decimal (redundant `Name` removed).
-- GeoJSON mapping Structures: `PollDownloadData`, `PollDownloadResponse`, `GeoJSONProperties`, `GeoJSONGeometry` (Decimal-list coordinates), `GeoJSONFeature`, `GeoJSONCollection`.
-- `GetFamilyServiceCentres` outputs `CentreList` (FamilyServiceCentre List), `Success` Boolean, `ErrorMessage` Text; full flow with validation If, site-property handoff, `ForEach` mapping via `ListAppend`, and an `AllExceptions` handler.
-- `DataGovSG` REST client + `OnBeforeRequest` callback (see above).
-- TrueChange: **0 errors** (expected warnings only: template role defaults, OnInitialize server-call performance notes, public-screen security notes).
-- Last publication: success (16 Oct 2026).
+**Client-side filtering and pagination over 94 cached records.** The
+whole directory is a few tens of KB, so loading it once and filtering,
+sorting and paginating in the browser makes every interaction instant and
+costs no server round-trips. It would not scale to tens of thousands of
+rows. At that size, server-side aggregates with `Max Records` / `Start
+Index` and indexed search columns take over. Filtering uses an explicit
+`ForEach` + `ListAppend` because client `ListFilter` could not scope
+per-row `Current` references in this runtime.
 
-## CentreDetailsPanel (reusable block, verified live 16 Oct 2026)
+**LIB / CS / UI split.** LIB holds contracts only, CS owns integration,
+data and business rules, and the UI only presents. This follows the
+OutSystems Architecture Canvas layering: the UI can be rebuilt (or a
+mobile app added) without touching integration, CS can be tested and
+reused on its own, and there are no upward or circular references. The
+trade-off is three modules to publish in order (LIB → CS → UI), which is
+overhead for an app this size.
 
-- `CentreDetailsPanel` Web Block (inputs `IsOpen`, `Location : SupportLocation`, `CentreType`; event `OnClose`): right-side drawer with type badge, address/postal/telephone+Call/email+Email, Get Directions / Open in Google Maps links, empty-contact fallback text, Esc-to-close with focusable Close, `role=dialog` semantics. Used by FindCentres (`FSC`) and FindSupport (FSC/SSO/SFP kinds).
-- Keyless Leaflet map (OpenStreetMap tiles via CDN, marker + popup, resize handling, guarded when coordinates are absent): no Google Maps API key, no billing. Raw coordinates are hidden from view (present in markup only for the map reader).
-- No map widget dependency in FindCentres/FindSupport themselves; the only map lives inside the panel block.
+**Keyless Leaflet + OpenStreetMap.** No API key to provision, rotate or
+leak, and no billing account. The map lives only inside
+`CentreDetailsPanel`, so screens don't depend on it. Trade-offs: OSM
+tiles come from a public CDN under its usage policy, which a production
+government service would replace with OneMap (SLA, local addressing).
+Directions deep-link to Google Maps rather than an embedded router.
 
-## Application access
+**Timers created in Service Studio.** The MCP model API writes a
+timer-schedule feature that Service Studio 11.55.92 refuses to merge, so
+both timers were made by hand in Studio. They exist only in the module,
+not in any scripted change. The refresh-through getter means the app still
+works if a timer is missing.
 
-- Published `FindCentres`: https://personal-uu490uhn.outsystemscloud.com/SGFamilySupportFinder/FindCentres (public directory, no authentication).
-- No credentials in this repository.
+**429 and partial-failure handling.** Each dataset is fetched and cached
+independently.
+- Find Support shows whichever datasets loaded, with a visible warning
+  for the one that didn't. This was verified live during an SFP 429
+  episode, when 55 FSC and 24 SSO records still rendered.
+- If the cache holds rows, an upstream failure serves stale data with a
+  banner rather than an error.
+- A total failure shows an error state with Retry.
+- Tests click through a transient 429 via Retry, with a time bound, so
+  real breakage still fails.
 
-## Automated testing
+**Indicative, not eligibility.** Eligibility for ComCare and similar
+schemes is decided case by case by an officer, from documents. The app
+never says someone qualifies. It says a scheme is "potentially relevant",
+lists what it can't know ("Residency not stated…"), and links to the
+official page and channel. Household inputs are optional and never block
+results. This keeps the app honest and avoids misleading vulnerable users.
 
-- `tests/` (Playwright): app-loads (+loading resolves), real-records (+results count),
-  search (case-insensitive `lakeside` variants + independent `tampines` term),
-  no-results, contact/directions (+address fragment), labelled `[MOCKED]`
-  offline/browser-channel error-retry. Base URL via `APP_BASE_URL` env only
-  (run serially: `npx playwright test --workers=1`).
-  Deterministic waits (`expect.poll`, `waitForFunction`); no fixed sleeps; no
-  hardcoded environment URLs. Audited read-only by test-reviewer; corrections applied.
-- Status: **30 passed, 0 failed (16 Oct 2026)** serially (`--workers=1`) on the
-  pre-redesign publish, including the four enabled persistence specs.
-  Redesign verification (17 Oct 2026): combined directory (94 records),
-  wizard/pagination/filter specs (`wizard.spec.ts`, `directory.spec.ts`)
-  added; existing specs adapted to the explicit-Continue wizard and renamed
-  data channels; full serial re-verification in progress — see
-  `tests/README.md` for the final recorded result. Previously verified
-  suites (carried over): 8 FindCentres specs (app-loads ×2, real-records, search
-  ×2 button-triggered, no-results, contact-directions via popup-URL
-  assertion since O11 action links render `href="#"`, `[MOCKED]`
-  screenservices-abort error/retry with recovery) + 6 FindSupport specs
-  (guided form, per-category live records, income/household neutrality,
-  official-link popups, bidirectional nav) + 5 CentreDetailsPanel specs
-  (sidebar open/update/Escape/directions/mobile sheet) + 7 responsive/a11y
-  specs (overflow-free viewports 320→1920, touch targets, keyboard reach,
-  semantic headings, focusable skip link, visibly rendering map) + 4 persistence
-  specs (repeat-visit timestamp/record stability, <24h freshness, reload/Retry
-  no-duplicates, `[MOCKED]` channel fault/recovery). Test corrections made for real
-  O11 behavior only (explicit Search-button trigger, boolean-poll
-  assertions instead of strict-mode-violating `.or()` chains, popup-URL
-  instead of `href` assertion, generous first-load timeouts, updated
-  screenservices action-name patterns after the cache-first rebind); no defect
-  hidden. See `tests/README.md`.
+**Other choices.**
+- Postal codes are stored as Text.
+- No personal data is persisted: wizard answers live only in screen
+  variables.
+- FSC retrieval hands the signed download URL to the REST call through a
+  CS site property (validated S3 host, overwritten right before use),
+  while SSO and SFP use a request-scoped header. Site properties are
+  shared environment state, so moving FSC to the header pattern would be
+  cleaner. It was deferred to avoid re-verifying a working path.
 
-## AWS IaC
+## Testing
 
-- `infra/` (Terraform): reference VPC/subnets, ALB, Windows/IIS hosts, RDS SQL Server, IAM, CloudWatch, Secrets Manager placeholder. Provisions generic AWS landing zone only.
-  Audited by iac-reviewer: fixed secrets-wiring mismatch (RDS-managed master secret now readable), scoped ALB egress, removed DB allow-all egress, enforced IMDSv2, removed dead `db_name` variable, fmt-style realignment.
-- Does NOT install/license/configure OutSystems, LifeTime, or deploy this app. `terraform apply` out of scope (costs). Validated 15 Oct 2026 with Terraform v1.16.5: `init -backend=false`, `fmt -check -recursive` and `validate` all pass (one genuine `jsonencode` paren fix in the S3 log-bucket policy found by `init`). See `infra/README.md`.
+Playwright end-to-end and responsive tests in `tests/` run against the live
+app. The two `[MOCKED]` specs abort the browser→OutSystems screen-action
+call to exercise the error/Retry path. They are labelled as mocks and are not
+evidence of server-side fallback.
 
-## Assumptions and trade-offs
+**Latest full run: 17 Oct 2026, serial, Chromium, against the live app.**
+The test code was not changed for this run.
 
-- Structure list (not Entities) for live contracts and UI mapping; persistent
-  Entities only for the dataset cache + sync metadata (small tables, full
-  replace, no timers in MCP-authored code).
-- Fetch-once + client-side filter: avoids repeated API calls for a ~44 KB dataset; server action keeps HTTP/mapping out of the UI. Cache-first serving extends this across visits: fresh cache means zero upstream calls per page load.
-- Postal code as Text preserves leading zeros/variable formats.
-- Three modules share one publish order (LIB → CS → Finder UI) to minimise scope, publish ordering and dependency risk for this assessment.
-- Directions via Google Maps links and panel Leaflet map (OpenStreetMap tiles, keyless CDN): no Google Maps API key, no billing.
+| Spec | Passed | Failed | Covers |
+|---|---|---|---|
+| `app-loads.spec.ts` | 2 | 0 | app loads, loading indicator resolves |
+| `real-records.spec.ts` | 1 | 0 | real FSC records from data.gov.sg render |
+| `search.spec.ts` | 2 | 0 | case-insensitive search by name/address, second independent term |
+| `no-results.spec.ts` | 1 | 0 | empty state for a gibberish query |
+| `contact-directions.spec.ts` | 1 | 0 | contact details and directions link |
+| `directory.spec.ts` | 4 | 0 | all three types (94 records), search + type filter, pagination with reset, sort reversal |
+| `centre-details-panel.spec.ts` | 5 | 0 | details drawer open/update/Escape, directions and contact targets, mobile full-screen sheet, opened from Find Support |
+| `findsupport.spec.ts` | 6 | 0 | wizard loads without login, per-need guidance + live SSO/FSC/SFP records, caregiving referrals, input neutrality, navigation |
+| `wizard.spec.ts` | 6 | 0 | explicit Continue/Back, household options, income validation, blank optionals |
+| `persistence-refresh.spec.ts` | 4 | 0 | cached timestamp stable across visits, <24 h freshness, no duplicates on reload/Retry, [MOCKED] channel fault + Retry |
+| `ux-responsive.spec.ts` | 7 | 0 | no horizontal overflow 320–1440 px on both screens, 390 px touch targets, keyboard reach, headings/labels/lang, skip link |
+| `api-error-retry.mock.spec.ts` | 1 | 0 | [MOCKED] screen-action failure shows error state, Retry recovers |
+| **Total** | **40** | **0** | 12 spec files, serial (`--workers=1`), 6 min 14 s |
+
+Not covered by automated tests:
+- Server-side unit tests of CS logic (e.g. BDDFramework). Caching is
+  proven through observable behaviour (stable timestamp, zero refetch,
+  no duplicates), not by asserting on entities directly.
+- The timers firing.
+- Cross-browser runs beyond Chromium.
+
+## Infrastructure (AWS reference)
+
+`infra/` is a Terraform reference for running **self-managed OutSystems 11**
+on AWS. It covers:
+- a VPC over two AZs, with a NAT gateway per AZ behind a toggle
+- Dev / Test / Prod front-end ASGs behind one ALB with host routing
+- a Deployment Controller per environment and a dedicated LifeTime server
+- RDS SQL Server, Multi-AZ for prod
+- Amazon MQ for RabbitMQ as the cache invalidation service
+- ACM + HTTPS with an HTTP→HTTPS redirect, WAFv2 managed rules, optional
+  Route 53
+- CloudWatch logs and alarms wired to SNS, AWS Backup, KMS
+- an optional S3 + DynamoDB remote-state backend
+- per-environment tfvars examples
+
+`fmt`, `validate` and `tflint` pass, and checkov reports 314 passed /
+24 failed, with each finding explained. The topology diagram, cost notes
+and assumptions are in `infra/README.md`. The working app runs on
+OutSystems Cloud, not on this design, and `terraform apply` has not been
+run.
+
+## Assumptions
+
+- The three data.gov.sg datasets are the authoritative public lists. Record
+  counts (55 / 24 / 15) are as published in October 2026 and will drift.
+- Scheme content is a curated static catalogue, checked against official
+  pages on 16 Oct 2026. It needs periodic review because schemes and
+  criteria change. It is guidance, not policy.
+- Anonymous access is right for a discovery tool, so no login is needed
+  and nothing is stored.
+- English only.
+- Infrastructure assumptions (Amazon MQ, RDS for SQL Server, versions,
+  sizing) are listed with sources in `infra/README.md`.
 
 ## Known limitations
 
-- The download URL travels via the `GeoJSONDownloadUrl` site property
-  (validated S3 host + dataset path, overwritten on every successful poll
-  immediately before use). Site properties are shared environment state,
-  not request-scoped storage — this is a known design trade-off: a
-  header-scoped handoff through `OnBeforeRequest` would be cleaner but was
-  deferred to avoid re-verifying the working retrieval path.
-- The two cache timers were created directly in Service Studio because the
-  MCP model API writes a timer-schedule feature that Studio 11.55.92
-  refuses to merge; their definitions live only in the module, not in any
-  scripted change.
-- The platform top menu (app title, Login link) is stock OutSystems chrome;
-  the shared `Common/Menu` block was intentionally left untouched.
-- Pre-existing `Common/Login` + `Common/InvalidPermissions` role warnings are untouched template defaults.
-- `terraform apply` never executed (would create chargeable resources); the
-  app itself runs on the OutSystems Cloud personal environment, not on the
-  reference AWS design.
+- Ranking schemes by household inputs is not merged yet (see Find Support
+  above).
+- The two timers exist only in the Service Studio module (see design
+  decisions).
+- The FSC download-URL handoff uses a site property (see design decisions).
+- Leftover template role warnings remain on `Common/Login` and
+  `Common/InvalidPermissions`.
+- No OAP export of the modules is committed yet.
+
+## Development workflow
+
+The app is built in Service Studio, with OpenCode driving the official
+OutSystems 11 Service Studio MCP server. Project skills live in
+`.opencode/skills/`: `o11-mcp`, `servicestudio-mcp-oml`,
+`datagov-integration`, `assessment-testing` and `aws-reference-iac`.
+Agents are in `.opencode/agents/`, and the working rules are in `AGENTS.md`.
+`opencode.example.json` shows the MCP client configuration with a
+placeholder URL. The real tunnel URL is never committed.

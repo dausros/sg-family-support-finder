@@ -2,7 +2,7 @@ import { test, expect, Page } from '@playwright/test';
 import { requireBaseURL, screenUrl, waitForSupportData } from './helpers';
 
 // Find Support v2: step 1 = one need, step 2 = one question per screen
-// (5 optional questions), step 3 = "Help for you" ranked results.
+// (7 optional questions), step 3 = "Help for you" ranked results.
 // Ranking and notes come from SGFamilySupport_CS.GetSchemeRecommendations.
 // Nothing here is an eligibility decision.
 
@@ -20,25 +20,32 @@ async function next(page: Page) {
 async function pickNeed(page: Page, label: RegExp) {
   await page.getByRole('button', { name: label }).click();
   await page.locator('.sgsf-continue').click();
-  await expect(page.getByText(/question 1 of 5/i)).toBeVisible({ timeout: 30000 });
+  await expect(page.getByText(/question 1 of 7/i)).toBeVisible({ timeout: 30000 });
 }
 
-type Household = { income?: string; size?: string; household?: RegExp; employment?: RegExp; residency?: RegExp };
+type Household = { income?: string; size?: string; household?: string; marital?: string; housing?: string; employment?: string; residency?: string };
+
+// Questions 3-7 are dropdowns backed by static entities (labelled <select>s).
+async function choose(page: Page, n: number, label?: string) {
+  await expect(page.getByText(new RegExp(`question ${n} of 7`, 'i'))).toBeVisible();
+  if (label) {
+    const sel = page.locator('select:visible').first();
+    await expect(sel.locator('option', { hasText: label })).toHaveCount(1, { timeout: 30000 });
+    await sel.selectOption({ label });
+  }
+}
 
 async function answer(page: Page, h: Household) {
   if (h.income) await page.locator('input:visible').first().fill(h.income);
   await next(page);
-  await expect(page.getByText(/question 2 of 5/i)).toBeVisible();
+  await expect(page.getByText(/question 2 of 7/i)).toBeVisible();
   if (h.size) await page.locator('input:visible').first().fill(h.size);
   await next(page);
-  await expect(page.getByText(/question 3 of 5/i)).toBeVisible();
-  if (h.household) await page.getByRole('button', { name: h.household }).click();
-  await next(page);
-  await expect(page.getByText(/question 4 of 5/i)).toBeVisible();
-  if (h.employment) await page.getByRole('button', { name: h.employment }).click();
-  await next(page);
-  await expect(page.getByText(/question 5 of 5/i)).toBeVisible();
-  if (h.residency) await page.getByRole('button', { name: h.residency }).click();
+  await choose(page, 3, h.household); await next(page);
+  await choose(page, 4, h.marital); await next(page);
+  await choose(page, 5, h.housing); await next(page);
+  await choose(page, 6, h.employment); await next(page);
+  await choose(page, 7, h.residency);
 }
 
 async function viewResults(page: Page) {
@@ -78,9 +85,9 @@ test('step 2 asks one question per screen and Back works', async ({ page }) => {
   await pickNeed(page, /help with money/i);
   await expect(page.locator('input:visible')).toHaveCount(1);
   await next(page);
-  await expect(page.getByText(/question 2 of 5/i)).toBeVisible();
+  await expect(page.getByText(/question 2 of 7/i)).toBeVisible();
   await page.getByRole('button', { name: /^back$/i }).click();
-  await expect(page.getByText(/question 1 of 5/i)).toBeVisible();
+  await expect(page.getByText(/question 1 of 7/i)).toBeVisible();
 });
 
 test('parenting: KidSTART ranked first as a good match', async ({ page }) => {
@@ -89,7 +96,7 @@ test('parenting: KidSTART ranked first as a good match', async ({ page }) => {
   await gotoSupport(page);
   await pickNeed(page, /parenting support/i);
   // $2,000 / 4 people = $500 per person, within KidSTART's published per-capita test.
-  await answer(page, { income: '2000', size: '4', household: /family with children/i, employment: /^working$/i, residency: /singapore citizen/i });
+  await answer(page, { income: '2000', size: '4', household: 'Family with children', employment: 'Working', residency: 'Singapore Citizen' });
   await viewResults(page);
   const t = await titles(page);
   expect(t[0]).toMatch(/KidSTART/);
@@ -118,7 +125,7 @@ test('money need: ComCare SMTA listed with real tel: links', async ({ page }) =>
   requireBaseURL();
   await gotoSupport(page);
   await pickNeed(page, /help with money/i);
-  await answer(page, { income: '1500', size: '4', employment: /looking for work/i, residency: /singapore citizen/i });
+  await answer(page, { income: '1500', size: '4', employment: 'Looking for work', residency: 'Singapore Citizen' });
   await viewResults(page);
   expect((await titles(page)).join(' | ')).toMatch(/ComCare Short-to-Medium-Term Assistance/);
   await expect(page.locator('a[href^="tel:"]').first()).toBeVisible();

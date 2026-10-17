@@ -476,3 +476,14 @@ Owner's ask (17:18 SGT): build the recommended features (nearest centres, share 
 - New strings added to the built-in translation table (BM, 中文, தமிழ்) through a marked `/*sgsf-i18n-extra*/` block, so later features extend one block instead of editing the large dictionary.
 - Theme CSS lives in one marked `/* sgsf-features-css */` block at the end of the theme.
 - Live check (390px): WhatsApp opens with the summary text; button height 56px; 0 page errors. Screenshot: `feat-3-share.png`.
+
+### F1 Wizard choices as dropdowns (UI published 18:13 SGT)
+- Step 2 now asks **7** optional questions, one per screen: income, household size, then 5 choice questions, each a native **Dropdown** bound to a public Static Entity in CS (`GetHouseholdTypes`, `GetMaritalStatuses`, `GetHousingTypes`, `GetEmploymentStatuses`, `GetResidencyStatuses`: block aggregates fetched At Start, filtered `Is_Active = True`). Values and labels are the entity `Label`, so the existing Text variables and the CS ranking logic are unchanged.
+  - New: **marital status** (Q4) and **housing type** (Q5), passed through the block event `OnHouseholdSubmitted` → `FindSupport` → `WizardStep3Results` → `GetSchemeRecommendations(MaritalStatus, HousingType)`. They are also part of the results' query key, so changing an answer refreshes the results.
+  - The old button groups and their three `OnSelect*` screen actions were removed (no dead code). Income and household size stay number inputs (number keypad).
+  - Each dropdown has a real `<label for>` (Label widget with TargetWidget), 56px tall, 18px text, and a "Choose one (optional)" empty option. Hidden questions hide the whole dropdown container.
+- "Question N of 7" and the Listen text were updated for 7 questions. All new strings (questions, options, empty text) are in the translation table (BM, 中文, தமிழ்).
+- Why dropdowns everywhere (the brief allowed big buttons for 2–4 options): the owner asked for dropdowns, and one control type for every choice question keeps step 2 consistent. Native selects open the phone's large picker.
+- Tests: new `dropdowns.spec.ts` (options come from the static entities, one visible dropdown per question, ≥48px, the answers reach the ranking: rental flat lifts ComLink+). `findsupport.spec.ts` and `wizard.spec.ts` updated for 7 questions and dropdowns. New `share-print.spec.ts` for F3. **Live suite 44/44.**
+- TrueChange (UI): 0 errors, 9 warnings (the same 9 by-design warnings).
+- Screenshot: `feat-1-dropdowns.png`.

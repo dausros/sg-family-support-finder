@@ -425,3 +425,10 @@ All changes are in the SGFamilySupportFinder (UI) module. Validated 0 errors (11
 ### Manual steps for the owner in Service Studio (optional)
 - The footer links **MSF ComCare**, **SG Enable** and **data.gov.sg dataset** have no destination (they render as `href="#"`). Set each Link's URL (Destination → External URL) to the official page, then publish.
 - When you move to OutSystems' own translations (Data tab → Multilingual Locales → Import Language Resources with sgfsf-translations.xlsx), the built-in table can stay as a fallback; native translations always win.
+
+
+### R5 Language menu: removed the stray "Button" word (17 Oct, 16:40 SGT)
+- Owner spotted it on his phone: the Language menu read "ButtonEnglish", "ButtonBahasa Melayu", "Button中文", "Buttonதமிழ்".
+- Cause: the four language buttons in block `Common/AccessBar` were created with `IButton`, which comes with a default Text widget "Button"; the label text was added beside it instead of replacing it.
+- Fix: deleted those 4 default "Button" Text widgets. A model sweep of every screen and block (Text widgets reading "Button", "Link", "Text", "Container", "Expression", "Label", "Title", "Icon", `lbl_…` or `{0}`) found no others.
+- Published 0 errors. Live check at 390px: the menu reads English, Bahasa Melayu, 中文, தமிழ். Screenshot: `docs/screenshots/lang-menu-fixed.png`.

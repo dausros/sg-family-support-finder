@@ -58,6 +58,8 @@ const DATA_CALLS = [
   '**/screenservices/**/ActionGet*FamilyServiceCentres*',
   '**/screenservices/**/ActionGet*SocialServiceOffices*',
   '**/screenservices/**/ActionGet*StrengtheningFamiliesServices*',
+  // Since the GetDirectory refactor the three lists arrive in one Data Action call.
+  '**/screenservices/**/DataActionGetDirectory*',
 ];
 
 const MONTHS: Record<string, number> = {

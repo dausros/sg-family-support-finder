@@ -146,21 +146,26 @@ test('FindSupport service locations open the same details panel', async ({
   });
   // Guided wizard: pick a need, advance through household context to results.
   await expect(
-    page.getByRole('button', { name: /financial difficulties/i }),
+    page.getByRole('button', { name: /help with money/i }),
   ).toBeVisible({ timeout: 60000 });
   await page.getByRole('button', { name: /family or relationship/i }).click();
   // Step 1 requires explicit Continue (selection never auto-navigates).
-  const cont = page.getByRole('button', { name: /^continue$/i }).first();
+  const cont = page.getByRole('button', { name: /^next$/i }).first();
   if (await cont.isVisible().catch(() => false)) {
     await cont.click();
   }
   const viewResults = page
-    .getByRole('button', { name: /view results/i })
+    .getByRole('button', { name: /skip the rest/i })
     .first();
   if (await viewResults.isVisible().catch(() => false)) {
     await viewResults.click();
   }
   await waitForSupportData(page);
+
+  // v2: "Places that can help" lists are collapsed; open the first one.
+  const placesGroup = page.locator('summary', { hasText: /places/i }).first();
+  await expect(placesGroup).toBeVisible({ timeout: 60000 });
+  await placesGroup.click();
 
   const details = page
     .getByRole('link', { name: /view details/i })

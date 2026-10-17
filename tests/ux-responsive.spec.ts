@@ -42,7 +42,7 @@ test('FindSupport step 1 has no horizontal overflow at any target viewport', asy
       waitUntil: 'domcontentloaded',
     });
     await expect(
-      page.getByRole('button', { name: /financial difficulties/i }),
+      page.getByRole('button', { name: /help with money/i }),
     ).toBeVisible({ timeout: 60000 });
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
@@ -66,9 +66,9 @@ test('mobile touch targets and search usability at 390px', async ({ page }) => {
   await page.goto(screenUrl(process.env.APP_BASE_URL as string, 'FindSupport'), {
     waitUntil: 'domcontentloaded',
   });
-  const need = page.getByRole('button', { name: /financial difficulties/i });
+  const need = page.getByRole('button', { name: /help with money/i });
   await expect(need).toBeVisible({ timeout: 60000 });
-  for (const label of [/financial difficulties/i, /caregiving/i]) {
+  for (const label of [/help with money/i, /caregiving/i]) {
     const box = await page.getByRole('button', { name: label }).boundingBox();
     expect(box?.height, `need button ${label} height`).toBeGreaterThanOrEqual(40);
   }
@@ -90,13 +90,13 @@ test('keyboard navigation reaches search and need options', async ({ page }) => 
     waitUntil: 'domcontentloaded',
   });
   await expect(
-    page.getByRole('button', { name: /financial difficulties/i }),
+    page.getByRole('button', { name: /help with money/i }),
   ).toBeVisible({ timeout: 60000 });
-  await page.getByRole('button', { name: /financial difficulties/i }).focus();
+  await page.getByRole('button', { name: /help with money/i }).focus();
   const needFocused = await page.evaluate(
     () => (document.activeElement?.textContent || '').slice(0, 30),
   );
-  expect(needFocused).toMatch(/financial/i);
+  expect(needFocused).toMatch(/money/i);
 });
 
 test('semantic headings, labels and document language', async ({ page }) => {

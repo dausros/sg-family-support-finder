@@ -2,7 +2,7 @@
   "name": "sg-family-support-finder-tests",
   "version": "0.1.0",
   "private": true,
-  "description": "Playwright scaffolding for SG Family Support Finder (O11). BLOCKED pending publish — do not present as passing.",
+  "description": "Playwright end-to-end and responsive tests for SG Family Support Finder (O11). Run against APP_BASE_URL with --workers=1.",
   "scripts": {
     "test": "playwright test",
     "test:headed": "playwright test --headed",

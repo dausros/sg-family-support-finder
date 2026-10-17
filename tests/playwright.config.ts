@@ -1,12 +1,10 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
- * Base URL is configurable via APP_BASE_URL.
- * Example (do NOT hardcode a live URL here):
- *   APP_BASE_URL=https://<env>.outsystemsenterprise.com/SGFamilySupportFinder/FindCentres
- *
- * Status: BLOCKED — no published URL exists yet (O11 build pending).
- * Tests must not be run until APP_BASE_URL points at a user-approved publish.
+ * Base URL comes from APP_BASE_URL only (app root or a screen URL), e.g.
+ *   APP_BASE_URL=https://personal-uu490uhn.outsystemscloud.com/SGFamilySupportFinder/
+ * Without it, every spec skips (see helpers.requireBaseURL).
+ * Run serially: npx playwright test --workers=1
  */
 const baseURL = process.env.APP_BASE_URL;
 

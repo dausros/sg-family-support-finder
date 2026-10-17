@@ -32,7 +32,7 @@ test('selecting a need does not navigate automatically', async ({ page }) => {
 test('Continue advances, Back preserves the selection', async ({ page }) => {
   requireBaseURL();
   await gotoSupport(page);
-  await page.getByRole('button', { name: /children and parenting/i }).click();
+  await page.getByRole('button', { name: /^parenting support$/i }).click();
   await page.getByRole('button', { name: /^continue$/i }).click();
   await expect(
     page.getByText(/household situation|monthly household income/i).first(),
@@ -42,24 +42,25 @@ test('Continue advances, Back preserves the selection', async ({ page }) => {
   await expect(
     page.getByRole('button', { name: /financial difficulties/i }),
   ).toBeVisible({ timeout: 30000 });
-  await expect(page.getByText(/selected: children/i)).toBeVisible();
+  await expect(page.getByText(/selected: parenting support/i)).toBeVisible();
 });
 
 test('household option selects without submitting', async ({ page }) => {
   requireBaseURL();
   await gotoSupport(page);
   await toStep2(page);
-  await page.getByRole('button', { name: /single adult/i }).click();
-  // No navigation: still on step 2 with View results available.
-  await expect(page.getByText(/selected household: single adult/i)).toBeVisible();
+  const single = page.getByRole('button', { name: /^single adult$/i });
+  await single.click();
+  // No navigation: still on step 2, choice marked pressed, View results available.
+  await expect(single).toHaveAttribute('aria-pressed', 'true');
   await expect(
     page.getByRole('button', { name: /view results/i }),
   ).toBeVisible();
 });
 
 test('non-numeric income is treated as unspecified', async ({ page }) => {
-  // Income never gates results (matches the original neutrality contract and
-  // the input prompt): free text proceeds; only negative numbers block.
+  // Free text is treated as "not stated" (general results, no income notes);
+  // only negative numbers block.
   requireBaseURL();
   await gotoSupport(page);
   await toStep2(page);

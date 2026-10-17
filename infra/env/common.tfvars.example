@@ -1,0 +1,30 @@
+# Shared settings. Copy to common.tfvars (git-ignored) and combine with the
+# per-environment files:
+#   terraform plan -var-file=env/common.tfvars -var-file=env/dev.tfvars \
+#                  -var-file=env/test.tfvars -var-file=env/prod.tfvars
+
+region  = "ap-southeast-1"
+project = "sgfsf-o11"
+
+vpc_cidr                 = "10.20.0.0/16"
+public_subnet_cidrs      = ["10.20.0.0/24", "10.20.1.0/24"]
+private_app_subnet_cidrs = ["10.20.10.0/23", "10.20.12.0/23"]
+private_db_subnet_cidrs  = ["10.20.20.0/24", "10.20.21.0/24"]
+nat_gateway_per_az       = true
+
+domain_name         = "o11.example.gov.sg"
+acm_certificate_arn = "" # or an existing arn:aws:acm:ap-southeast-1:<acct>:certificate/<id>
+route53_zone_id     = "" # set to manage DNS validation + alias records
+
+alb_ingress_cidr_blocks = ["0.0.0.0/0"]
+allowed_rdp_cidr_blocks = [] # prefer SSM Session Manager
+
+lifetime = {
+  enabled       = true
+  instance_type = "m6i.large"
+}
+
+nonprod_db_instance_class = "db.m5.large"
+prod_db_instance_class    = "db.m5.xlarge"
+
+alarm_email = "platform-oncall@example.gov.sg"

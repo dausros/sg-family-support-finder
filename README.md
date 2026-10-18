@@ -93,7 +93,7 @@ A three-step wizard with explicit Next / Back and no automatic navigation.
    - five category questions as **dropdowns backed by CS Static Entities**: household type, marital status, housing type, employment, residency
    - every dropdown has a real `<label for>` and is 56px tall
 3. **Help for you:**
-   - **Scheme cards:** from the CS `SchemeCatalogue`, via `GetSchemeRecommendations`, which receives all the answers. Each card says why it may fit, what is still missing, what it gives, documents needed, how to apply, and links to the official page.
+   - **Scheme cards:** from the CS `SchemeCatalogue`, via `Scheme_GetRecommendations`, which receives all the answers. Each card says why it may fit, what is still missing, what it gives, documents needed, how to apply, and links to the official page.
    - **Answer chips** with a **Change answers** link.
    - **Nearest centres:**
      - Type a postal code to get the **3 closest Family Service Centres**, with straight-line distance, Call and Directions.
@@ -152,7 +152,7 @@ SGFamilySupportFinder (Reactive)    screens, blocks, navigation, forms, map
 | Module | Owns |
 |---|---|
 | `SGFamilySupport_LIB` | Public Structures, e.g. `FamilyServiceCentre` and `SupportLocation` (the contract the UI and CS share). No logic, REST or UI. |
-| `SGFamilySupport_CS` | The `DataGovSG` REST client (poll-download + GeoJSON download), GeoJSON DTO Structures and mapping. **Persistent entities** `CachedCentre`, `CachedOffice`, `CachedProgrammeSite`, `SyncStatus` and `AuditLog` (append-only record of admin changes), plus the static `SchemeCatalogue`. Sync actions, cache-first public getters and `GetSchemeRecommendations`. |
+| `SGFamilySupport_CS` | The `DataGovSG` REST client (poll-download + GeoJSON download), GeoJSON DTO Structures and mapping. **Persistent entities** `CachedCentre`, `CachedOffice`, `CachedProgrammeSite`, `SyncStatus` and `AuditLog` (append-only record of admin changes), plus the static `SchemeCatalogue`. Actions are grouped in folders (see **Action structure** below): cache sync, cache-first public getters and `Scheme_GetRecommendations`. |
 | `SGFamilySupportFinder` | `FindCentres` and `FindSupport` screens and the reusable `CentreDetailsPanel` block (Leaflet map). Client-side filtering, sort and pagination. Calls only public CS actions; no REST, no business rules. |
 
 ### Persistence and caching
@@ -161,14 +161,14 @@ SGFamilySupportFinder (Reactive)    screens, blocks, navigation, forms, map
   `CachedProgrammeSite` (15), keyed by dataset `OBJECTID`, plus one
   `SyncStatus` row per dataset (`LastSuccess`, `LastAttempt`,
   `RecordCount`, `LastError`).
-- **Sync:** `SyncCentresCache` / `SyncOfficesCache` / `SyncProgrammeCache`
+- **Sync:** `Cache_SyncCentres` / `Cache_SyncOffices` / `Cache_SyncProgrammeSites`
   each do a full replace (delete all, then bulk insert). Each has its own
   exception handler that records the error and keeps the last-known-good
-  rows. `SyncDatasetCaches` orchestrates them so one dataset's failure
+  rows. `Cache_SyncAll` orchestrates them so one dataset's failure
   never clears another.
-- **Serving:** `GetCachedFamilyServiceCentres` /
-  `GetCachedSocialServiceOffices` /
-  `GetCachedStrengtheningFamiliesServices` return the list plus
+- **Serving:** `Directory_GetFamilyServiceCentres` /
+  `Directory_GetSocialServiceOffices` /
+  `Directory_GetProgrammeSites` return the list plus
   `LastSynced`, `FromCache` and `StaleWarning`.
   - If the cache is under 24 h old and has rows, it is served with **zero
     upstream calls**.
@@ -178,8 +178,43 @@ SGFamilySupportFinder (Reactive)    screens, blocks, navigation, forms, map
     data is unavailable. Showing last updated records."
 - **Timers:** `SeedDatasetCache` (when published) and `RefreshDatasetCache`
   (daily at **03:00 SGT**: schedule 19:00 server time, UTC) call
-  `SyncDatasetCaches`. If a timer never fires, the first page load after
+  `Cache_SyncAll`. If a timer never fires, the first page load after
   the 24 h window refreshes the cache anyway.
+
+### Action structure
+
+Checked in Service Studio through the MCP on 18 Oct 2026 (folder, Public flag and description read back after the change). Naming is `Area_Verb…`. Only what the UI calls is Public.
+
+**SGFamilySupport_CS: 17 server actions, 0 client actions, in 6 folders**
+
+| Folder | Action | Public | Called by |
+|---|---|---|---|
+| Centre | `Centre_CreateOrUpdate` | Yes | UI `CentreAdmin` (checks the CentreAdmin role on the server, writes `AuditLog`) |
+| Centre | `Centre_SetActive` | Yes | UI `CentreAdmin` (role check, `AuditLog`) |
+| Centre | `Centre_Geocode` | No | `Directory_GetNearestCentres` |
+| Directory | `Directory_GetFamilyServiceCentres` | Yes | UI `FindCentres`, `WizardStep3Results` |
+| Directory | `Directory_GetSocialServiceOffices` | Yes | UI `FindCentres`, `WizardStep3Results` |
+| Directory | `Directory_GetProgrammeSites` | Yes | UI `FindCentres`, `WizardStep3Results` (Strengthening Families Programme sites) |
+| Directory | `Directory_GetNearestCentres` | Yes | UI `NearestCentres` block |
+| Scheme | `Scheme_GetRecommendations` | Yes | UI `WizardStep3Results` |
+| Integration_DataGovSg | `DataGovSg_FetchFamilyServiceCentres` | No | `Directory_GetFamilyServiceCentres` (when the cache is stale) |
+| Integration_DataGovSg | `DataGovSg_FetchSocialServiceOffices` | No | `Directory_GetSocialServiceOffices` |
+| Integration_DataGovSg | `DataGovSg_FetchProgrammeSites` | No | `Directory_GetProgrammeSites` |
+| Cache | `Cache_SyncAll` | No | timers `RefreshDatasetCache` (03:00 SGT) and `SeedDatasetCache` (on publish) |
+| Cache | `Cache_SyncCentres` | No | `Cache_SyncAll` |
+| Cache | `Cache_SyncOffices` | No | `Cache_SyncAll` |
+| Cache | `Cache_SyncProgrammeSites` | No | `Cache_SyncAll` |
+| Cache | `Cache_RemoveOverriddenRows` | No | `Cache_SyncCentres`, `Directory_GetFamilyServiceCentres` |
+| Geo | `Geo_DistanceKm` (function) | No | `Directory_GetNearestCentres` |
+
+**SGFamilySupport_LIB:** structures only, no actions.
+
+**SGFamilySupportFinder (UI): screen logic only**
+- Module client action: `Directory/Directory_ApplyFilters` (filter, sort and page the already-loaded list; no server call).
+- Server actions: `Authentication/DoLogin`, `DoLogout` (OutSystems template).
+- Every screen, block, data action and aggregate the app owns has a Description. Screen actions only set screen state, call `Directory_ApplyFilters` or raise block events. Data actions only call the public CS actions above. Aggregates read static lookup entities, plus `CachedCentre` for the admin grid.
+
+Known duplication (left as is on purpose): `Cache_Sync…` call the DataGovSG REST methods directly, while `Directory_Get…` refresh through `DataGovSg_Fetch…`. Merging them would change the refresh path of the live app, so it is listed as a follow-up and not done blind.
 
 ## Design decisions and trade-offs
 
@@ -263,8 +298,8 @@ app. The two `[MOCKED]` specs abort the browser→OutSystems screen-action
 call to exercise the error/Retry path. They are labelled as mocks and are not
 evidence of server-side fallback.
 
-**Latest full run: 18 Oct 2026, 21:59–22:09 SGT, Chromium, `--workers=1`, against the live app: 54 passed, 0 failed, 1 skipped (55 tests).**
-Run in four batches of 5 minutes or less. The first run of `persistence-refresh.spec.ts` failed 2 tests because the app now shows `Updated dd/MM/yyyy HH:mm SGT` and the parser still expected `dd MMM yyyy, HH:mm`; the parser was updated and the spec re-run: 4/4.
+**Latest full run: 18 Oct 2026, 23:44–23:53 SGT, Chromium, `--workers=1`, against the live app after the actions tidy and Listen fix: 59 passed, 0 failed, 1 skipped (60 tests).** It was run in four batches of 5 minutes or less: 21 + 15 + 18 (+1 skipped) + 5 (the new `listen.spec.ts`). The previous full run (21:59–22:09 SGT, before this round) was 54 passed, 0 failed, 1 skipped.
+In that previous run, the first run of `persistence-refresh.spec.ts` failed 2 tests because the app now shows `Updated dd/MM/yyyy HH:mm SGT` and the parser still expected `dd MMM yyyy, HH:mm`; the parser was updated and the spec re-run: 4/4.
 
 | Spec | Passed | Failed | Covers |
 |---|---|---|---|
@@ -277,6 +312,7 @@ Run in four batches of 5 minutes or less. The first run of `persistence-refresh.
 | `dropdowns.spec.ts` | 1 | 0 | category questions are labelled dropdowns and feed the ranking |
 | `findsupport.spec.ts` | 10 | 0 | 4 needs without login, one question per screen, ranking (KidSTART first for parenting, "May not apply" only on a published rule), real tel: links, skip-the-rest, language picker, bigger text |
 | `hotline.spec.ts` | 2 | 0 | Browse "Help now" is `tel:18002220000`; Find Support money results call ComCare 1800 222 0000; 1800 777 0000 appears nowhere |
+| `listen.spec.ts` | 5 | 0 | Listen reads ms/zh/ta text with a ms-MY / zh-CN / ta-IN voice; with only English voices it shows the translated "no voice" note and speaks nothing; English unchanged (Web Speech API stubbed: headless Chromium has no voices) |
 | `nearest.spec.ts` | 2 | 0 | bad/unknown postal code messages; 3 nearest sorted by distance with call + directions |
 | `no-results.spec.ts` | 1 | 0 | empty state for a gibberish query |
 | `persistence-refresh.spec.ts` | 4 | 0 | cached timestamp stable, <24 h freshness (SGT stamp), no duplicates, [MOCKED] fault + Retry |

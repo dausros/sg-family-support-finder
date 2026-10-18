@@ -11,7 +11,7 @@ Checked through the Service Studio MCP (model reads + TrueChange) and live Playw
 | Area | Check | Result |
 |---|---|---|
 | Architecture | 4-layer canvas: LIB → (System) only; CS → LIB; UI → CS, LIB, OutSystemsUI, Users, Maps, Charts. No upward or side references. | Pass |
-| Architecture | UI holds no business logic: eligibility rules live in CS (`GetSchemeRecommendations`); entities and the data.gov.sg REST client are in CS; CS entities are not Public, UI reads them only through CS server actions. | Pass |
+| Architecture | UI holds no business logic: eligibility rules live in CS (`Scheme_GetRecommendations`); entities and the data.gov.sg REST client are in CS; CS entities are not Public, UI reads them only through CS server actions. | Pass |
 | Data fetching | FindCentres used to call 3 server actions from **OnInitialize** (3 round trips before first paint; TrueChange performance warnings ×3). | **Fixed**: new Data Action `GetDirectory` loads all three lists in **one** server call; `LoadDirectory` (screen OnReady + Retry button) refreshes it with an AllExceptions handler that shows "Failed to load services. Check your connection and tap Retry."; the merge/filter/paging logic moved to `OnDirectoryFetched` (OnAfterFetch). |
 | Data fetching | FindSupport results come from Data Action `GetResults` in block `WizardStep3Results`; no aggregates in loops; no server calls in OnRender / OnParametersChanged. | Pass |
 | Lifecycle events | OnInitialize only for local init; no heavy logic in OnRender (only OutSystemsUI template `Menu` block uses OnRender). | Pass (template left as is) |

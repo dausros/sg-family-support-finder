@@ -3,7 +3,7 @@ import { requireBaseURL, screenUrl, waitForSupportData } from './helpers';
 
 // Find Support v2: step 1 = one need, step 2 = one question per screen
 // (7 optional questions), step 3 = "Help for you" ranked results.
-// Ranking and notes come from SGFamilySupport_CS.GetSchemeRecommendations.
+// Ranking and notes come from SGFamilySupport_CS.Scheme_GetRecommendations.
 // Nothing here is an eligibility decision.
 
 const SUPPORT_URL = () => screenUrl(process.env.APP_BASE_URL as string, 'FindSupport');

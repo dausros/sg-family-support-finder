@@ -1,15 +1,13 @@
 # SG Family Support Finder — Playwright tests
 
-> **Latest full serial run (`--workers=1`): 54 passed, 0 failed, 1 skipped
-> (55 tests, 18 Oct 2026, 21:59–22:09 SGT)** against the live app at
+> **Latest full serial run (`--workers=1`): 59 passed, 0 failed, 1 skipped
+> (60 tests, 18 Oct 2026, 23:44–23:53 SGT)** against the live app at
 > `https://personal-uu490uhn.outsystemscloud.com/SGFamilySupportFinder/`, Chromium,
-> run in four batches of 5 minutes or less. Per-spec counts are in the root
-> `README.md`. The skipped test is the logged-in admin flow in `admin.spec.ts`
-> (needs `SGFSF_ADMIN_USER` / `SGFSF_ADMIN_PASS` for a CentreAdmin test user).
-> In that run `persistence-refresh.spec.ts` first failed 2 tests: the app now
-> prints `Updated dd/MM/yyyy HH:mm SGT` and the parser expected the old
-> `dd MMM yyyy, HH:mm`. The parser was updated and the spec re-run: 4/4.
-> Previous runs: 47 passed / 1 skipped (17 Oct 2026); 30/30 (16 Oct 2026).
+> run in four batches of 5 minutes or less, after the actions tidy and the Listen
+> language fix. Per-spec counts are in the root `README.md`. The skipped test is the
+> logged-in admin flow in `admin.spec.ts` (needs `SGFSF_ADMIN_USER` /
+> `SGFSF_ADMIN_PASS` for a CentreAdmin test user).
+> Previous runs: 54 passed / 1 skipped (18 Oct 2026, 21:59 SGT); 47 passed / 1 skipped (17 Oct 2026); 30/30 (16 Oct 2026).
 
 ## Layout
 
@@ -27,6 +25,7 @@
 | `directory.spec.ts` | (9) combined directory: all three types with badges/counts (94/24/15), search+type combination, pagination with reset, sort reversal |
 | `persistence-refresh.spec.ts` | (9) persistence: repeat visit keeps `Updated …` timestamp + records stable (zero-refetch observable), timestamp parses and is <24h fresh, reload + Retry keep row-count and name-set identical, `[MOCKED]` browser-channel fault + Retry recovery (labelled mock, not server-side-fallback proof) |
 | `ux-responsive.spec.ts` | (8) responsive + a11y: zero horizontal overflow on both screens at 320/375/390/768/1024/1280/1440, 390px touch targets, keyboard reach, labels/`lang`/title/skip-link presence, semantic headings + focusable skip link (former `D-A11Y-01/02` gaps, now hard assertions) |
+| `listen.spec.ts` | Listen (read-aloud) uses the page language and a matching voice (ms-MY / zh-CN / ta-IN); no English-voice fallback, translated "no voice" note instead. Web Speech API is stubbed (headless Chromium has no voices); real phone audio is not covered |
 > NOTE (Oct 2026): `D-A11Y-01/02` were `test.fail`-tracked while the app lacked heading roles and the layout flag; both now pass as hard assertions. If either regresses, reinstate `test.fail` rather than deleting the test.
 | `admin.spec.ts` | `CentreAdmin` screen redirects to Login when logged out; logged-in add/edit/hide/show (skipped without a CentreAdmin test login) |
 | `dropdowns.spec.ts` | Find Support category questions are labelled dropdowns and feed the ranking |

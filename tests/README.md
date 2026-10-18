@@ -1,18 +1,23 @@
 # SG Family Support Finder — Playwright tests
 
-> **Latest full serial run (`--workers=1`): 60 passed, 0 failed, 0 skipped
-> (60 tests, 18 Oct 2026, 16:42–16:53 UTC)** against the live app at
+> **Latest full serial run (`--workers=1`): 70 passed, 0 failed, 1 skipped
+> (71 tests, 18 Oct 2026, 18:48–19:04 UTC)** against the live app at
 > `https://personal-uu490uhn.outsystemscloud.com/SGFamilySupportFinder/`, Chromium,
-> in batches of 5 minutes or less, with the `reviewer` CentreAdmin login supplied as
-> `SGFSF_ADMIN_USER` / `SGFSF_ADMIN_PASS`, so the logged-in admin flow in
-> `admin.spec.ts` ran and passed. Evidence: `docs/test-evidence/reviewer-run-2026-10-18.md`.
-> Without those two variables the admin flow is skipped (59 passed, 1 skipped).
+> in batches of 5 minutes or less, without a login: the logged-in admin flow in
+> `admin.spec.ts` was skipped. The 70 include one expected failure (`test.fail`)
+> in `page-health.spec.ts` that tracks known defect D-CSS-01.
+> Evidence: `docs/test-evidence/public-run-2026-10-18-evening.md`.
+> Latest run with the `reviewer` CentreAdmin login (`SGFSF_ADMIN_USER` /
+> `SGFSF_ADMIN_PASS`): 60 passed, 0 failed, 0 skipped (60 tests, 18 Oct 2026,
+> 16:42–16:53 UTC), `docs/test-evidence/reviewer-run-2026-10-18.md`.
 > Previous runs: 59 passed / 1 skipped (18 Oct 2026, 16:20–16:29 UTC, `scripts/check-all.sh`); 54 passed / 1 skipped (18 Oct 2026, 21:59 SGT); 47 passed / 1 skipped (17 Oct 2026); 30/30 (16 Oct 2026).
 
 ## Layout
 
 | File | Covers |
 |---|---|
+| `accessibility.spec.ts` | axe-core WCAG 2.0 / 2.1 A and AA scan of Browse, the details panel, the no-results state and Find Support steps 1–3 at 390 px and 1440 px, Browse in Bahasa Melayu / 中文 / தமிழ், and the staff sign-in page; fails on any violation and prints the rule and elements |
+| `page-health.spec.ts` | no uncaught script errors on the public screens; every app stylesheet and script loads (`test.fail` while known defect D-CSS-01 is open: remove the marker when it passes); Browse shows results within 5 s on a repeat visit at 390 px |
 | `app-loads.spec.ts` | (1) app loads + search input visible; loading indicator resolves |
 | `real-records.spec.ts` | (2) real Family Service Centre records appear (live data) + results count |
 | `search.spec.ts` | (3) case-insensitive search (`lakeside` variants + independent `tampines` term) |

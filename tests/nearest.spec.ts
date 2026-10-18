@@ -1,7 +1,7 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, Page } from '@playwright/test';
 
 // F2: postal code -> 3 nearest Family Service Centres (OneMap + stored centre coordinates).
-async function toResults(page) {
+async function toResults(page: Page) {
   await page.goto('FindSupport', { waitUntil: 'networkidle', timeout: 120000 });
   await page.getByRole('button', { name: /help with money/i }).click();
   await page.locator('.sgsf-continue').click();

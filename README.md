@@ -38,7 +38,9 @@ granted separately on request.
 
 | Check | Date | Result |
 |---|---|---|
-| Playwright, live app, Chromium, `--workers=1`, with the reviewer login | 18 Oct 2026, 16:42–16:53 UTC | **60 passed, 0 failed, 0 skipped** (`docs/test-evidence/reviewer-run-2026-10-18.md`) |
+| Playwright, live app, Chromium, `--workers=1`, public specs (no login) | 18 Oct 2026, 18:48–19:04 UTC | **70 passed, 0 failed, 1 skipped** (71 tests; the skip is the logged-in admin flow, not re-run without the login; the 70 include 1 expected failure that tracks known defect D-CSS-01) (`docs/test-evidence/public-run-2026-10-18-evening.md`) |
+| Playwright, live app, Chromium, `--workers=1`, with the reviewer login | 18 Oct 2026, 16:42–16:53 UTC | **60 passed, 0 failed, 0 skipped** (the 60 tests that existed then; `docs/test-evidence/reviewer-run-2026-10-18.md`) |
+| Accessibility: axe-core, WCAG 2.0 / 2.1 A and AA, every public screen state, 390 px and 1440 px, 4 languages | 18 Oct 2026, 19:01–19:03 UTC | **0 violations** (`tests/accessibility.spec.ts`, 8 tests) |
 | `terraform test` (offline, mocked AWS provider) | 18 Oct 2026 | **10 passed, 0 failed** |
 | checkov | 18 Oct 2026 | **323 passed, 0 failed, 15 skipped** (each skip has its reason inline; listed in `infra/README.md`) |
 | tflint (with the AWS ruleset) | 18 Oct 2026 | **0 issues** |
@@ -88,11 +90,11 @@ as such.
 | Ask in the brief | Where | Evidence | Status |
 |---|---|---|---|
 | Retrieve and integrate data from any dataset on data.gov.sg | CS module: three MSF datasets (FSC 55, SSO 24, SFP 15 = 94 records), cached in entities, daily refresh timer | `real-records.spec.ts`, `directory.spec.ts`, `persistence-refresh.spec.ts` pass against the live app | Done. The 03:00 SGT timer run has not been observed yet |
-| Present the data through a clear and user-friendly interface | Live app: Browse (`FindCentres`) and Find Support (`FindSupport`), 4 languages | `ux-responsive.spec.ts` (320–1440 px, touch targets, keyboard), `translations.spec.ts` | Done |
+| Present the data through a clear and user-friendly interface | Live app: Browse (`FindCentres`) and Find Support (`FindSupport`), 4 languages | `ux-responsive.spec.ts` (320–1440 px, touch targets, keyboard), `translations.spec.ts`, `accessibility.spec.ts` (axe-core WCAG 2.1 A/AA: 0 violations) | Done. Open UX items are listed in `docs/UX_REVIEW.md` |
 | Provide capabilities for users to explore and interact with the data | Search, filters, sort, pagination, details drawer, nearest 3 by postal code, guided questionnaire, share/print, staff add/edit/hide/show | `search`, `directory`, `centre-details-panel`, `nearest`, `findsupport`, `wizard`, `share-print`, `admin` specs | Done |
 | Demonstrate sound frontend and backend application design | LIB → CS → UI modules; actions grouped by area with `Area_Verb` names; server-side role checks; audit log ("Architecture", "Design decisions") | TrueChange 0 errors in all modules (warnings listed under "Known limitations") | Done |
 | IaC that defines the AWS infrastructure to deploy and operate the OutSystems platforms | `infra/` (Terraform): VPC over 2 AZs, ALB + TLS + WAF, Windows/IIS front-end ASGs, Deployment Controllers, LifeTime, RDS SQL Server (Multi-AZ prod), Amazon MQ (RabbitMQ), KMS, CloudWatch + SNS, AWS Backup, Secrets Manager, remote-state bootstrap | fmt, validate, tflint 0 issues, checkov 323 / 0 / 15 skipped with reasons, `terraform test` 10/10 (`infra/README.md`) | Written and tested offline. **Not verified:** a real `terraform plan` or `apply` in AWS (no AWS account) |
-| Include appropriate automated testing | `tests/` (Playwright, live app), `infra/tests/` (`terraform test`), `scripts/check-all.sh` runs all of it | Playwright 60 passed, 0 failed, 0 skipped with the reviewer login; `docs/test-evidence/` | Done |
+| Include appropriate automated testing | `tests/` (Playwright, live app), `infra/tests/` (`terraform test`), `scripts/check-all.sh` runs all of it | Playwright 60 passed, 0 failed, 0 skipped with the reviewer login (16:42 UTC); 70 passed, 0 failed, 1 skipped (admin flow, no login) after the accessibility and page-health specs were added (18:48–19:04 UTC); `docs/test-evidence/` | Done |
 | Submission 1: provide access to the OutSystems environment | Public screens need no login; `/CentreAdmin` with the `reviewer` login (CentreAdmin role only) | Reviewer login checked on the live admin screen; admin test passed with it | Done. Credentials are in the submission email |
 | Submission 2: IaC, automated tests and README in a Git repository, with access | This public repository | `infra/`, `tests/`, `infra/tests/`, `scripts/`, this README | Done |
 
@@ -155,6 +157,7 @@ Results are framed as **indicative**: the responsible agency decides eligibility
 - All public screens are in **English, Bahasa Melayu, 中文 and தமிழ்**, via the built-in translation table in `AccessBar`. There is also a text-size switch and a skip link.
 - 48px+ tap targets and plain words.
 - A green focus ring shows **only for keyboard focus**.
+- An automated WCAG 2.0 / 2.1 A and AA scan (axe-core) of every public screen state, at 390 px and 1440 px and in all four languages, reports 0 violations (`tests/accessibility.spec.ts`). An automated scan finds only part of what a manual review would; a manual screen-reader pass has not been done.
 - Look and feel follows the Singapore Government Design System: flat, 1px borders, 4px radius, one primary and one secondary button style. There is no gov masthead, because this is not an official site.
 
 ## Data sources
@@ -345,9 +348,10 @@ were, but the results below come from local runs.
 
 **Latest run: 18 Oct 2026, 16:20–16:29 UTC (00:20–00:29 SGT on 19 Oct)** (full output: `docs/test-evidence/local-run-2026-10-18.txt`)
 
-The run used the same infrastructure, test and script files as this commit (on top of
-master `c226138`), from a working copy rather than a git checkout, so the log's
-`Commit:` line reads "not a git checkout". Per-spec counts in the table below match the log.
+The run used the infrastructure, test and script files of master at
+`43267998d0774454e0f66a857d8c9ff35ab6e91c` (the merge of pull request #6), from a
+working copy rather than a git checkout, so the log's `Commit:` line reads "not
+a git checkout". Per-spec counts in the table below match the log.
 
 | Check | What it tests | Result |
 |---|---|---|
@@ -366,13 +370,18 @@ app. The two `[MOCKED]` specs abort the browser→OutSystems screen-action
 call to exercise the error/Retry path. They are labelled as mocks and are not
 evidence of server-side fallback.
 
-**Latest full run: 18 Oct 2026, 16:42–16:53 UTC (00:42–00:53 SGT on 19 Oct), Chromium, `--workers=1`, against the live app, with the `reviewer` CentreAdmin login: 60 passed, 0 failed, 0 skipped (60 tests).** Evidence: `docs/test-evidence/reviewer-run-2026-10-18.md`.
+**Latest full run: 18 Oct 2026, 18:48–19:04 UTC (02:48–03:04 SGT on 19 Oct), Chromium, `--workers=1`, against the live app, without a login: 70 passed, 0 failed, 1 skipped (71 tests).** The skipped test is the logged-in admin flow, which needs the reviewer login and was not re-run. The 70 include one expected failure (`test.fail`) that tracks known defect D-CSS-01. Evidence: `docs/test-evidence/public-run-2026-10-18-evening.md`.
+
+**Latest run with the `reviewer` CentreAdmin login: 18 Oct 2026, 16:42–16:53 UTC (00:42–00:53 SGT on 19 Oct): 60 passed, 0 failed, 0 skipped (the 60 tests that existed then).** Evidence: `docs/test-evidence/reviewer-run-2026-10-18.md`.
 
 Earlier runs the same day: 16:20–16:29 UTC through `scripts/check-all.sh`, 59 passed, 0 failed, 1 skipped (the admin flow, before the login existed; full output in `docs/test-evidence/local-run-2026-10-18.txt`); 23:44–23:53 SGT after the actions tidy and Listen fix, 59 passed, 0 failed, 1 skipped (60 tests); 21:59–22:09 SGT, 54 passed, 0 failed, 1 skipped (55 tests). In the 21:59 run, the first run of `persistence-refresh.spec.ts` failed 2 tests because the app had switched to `Updated dd/MM/yyyy HH:mm SGT` and the parser still expected `dd MMM yyyy, HH:mm`; the parser was updated and the spec re-run: 4/4.
 
+Per-spec counts below are from the 18:48–19:04 UTC run. The logged-in admin test was skipped there; it passed in the 16:42 UTC run with the reviewer login.
+
 | Spec | Passed | Failed | Covers |
 |---|---|---|---|
-| `admin.spec.ts` | 2 | 0 | CentreAdmin screen redirects to Login when logged out; logged-in add, edit, hide and show a centre (needs `SGFSF_ADMIN_USER` / `SGFSF_ADMIN_PASS`, skipped without them) |
+| `accessibility.spec.ts` | 8 | 0 | axe-core WCAG 2.0 / 2.1 A and AA on Browse, details panel, no results, Find Support steps 1–3 (390 px and 1440 px), Browse in ms / 中文 / தமிழ், staff sign-in page: 0 violations |
+| `admin.spec.ts` | 1 (+1 skipped) | 0 | CentreAdmin screen redirects to Login when logged out; logged-in add, edit, hide and show a centre (needs `SGFSF_ADMIN_USER` / `SGFSF_ADMIN_PASS`, skipped without them) |
 | `api-error-retry.mock.spec.ts` | 1 | 0 | [MOCKED] screen-action failure shows error + Retry |
 | `app-loads.spec.ts` | 2 | 0 | app loads, loading indicator resolves |
 | `centre-details-panel.spec.ts` | 5 | 0 | details drawer open/update/Escape, directions/contact targets, mobile sheet |
@@ -384,6 +393,7 @@ Earlier runs the same day: 16:20–16:29 UTC through `scripts/check-all.sh`, 59 
 | `listen.spec.ts` | 5 | 0 | Listen reads ms/zh/ta text with a ms-MY / zh-CN / ta-IN voice; with only English voices it shows the translated "no voice" note and speaks nothing; English unchanged (Web Speech API stubbed: headless Chromium has no voices) |
 | `nearest.spec.ts` | 2 | 0 | bad/unknown postal code messages; 3 nearest sorted by distance with call + directions |
 | `no-results.spec.ts` | 1 | 0 | empty state for a gibberish query |
+| `page-health.spec.ts` | 3 | 0 | no uncaught script errors on the public screens; every app stylesheet and script loads (expected failure, tracks D-CSS-01); Browse shows results within 5 s on a repeat visit at 390 px |
 | `persistence-refresh.spec.ts` | 4 | 0 | cached timestamp stable, <24 h freshness (SGT stamp), no duplicates, [MOCKED] fault + Retry |
 | `real-records.spec.ts` | 1 | 0 | real FSC records from data.gov.sg render |
 | `search.spec.ts` | 2 | 0 | case-insensitive search by name/address |
@@ -399,6 +409,8 @@ Not covered by automated tests:
   no duplicates), not by asserting on entities directly.
 - The timers firing (the 03:00 SGT run is not observed by any test).
 - Cross-browser runs beyond Chromium.
+- A manual screen-reader review (axe-core covers the automatable part of WCAG
+  only).
 
 ## Infrastructure (AWS reference)
 
@@ -461,6 +473,15 @@ app runs on OutSystems Cloud, not on this design. A real `terraform plan` or
   each logged-in run adds one hidden row to the admin list.
 - Tests run on Chromium only, against the live personal environment, which
   can be slow on a cold start.
+- Known defect D-CSS-01: every screen requests
+  `SGFamilySupportTheme.extra.css`, which the server answers with a 404, so the
+  browser console shows a stylesheet error on every screen. The visible theme
+  loads from `SGFamilySupportTheme.css`. Tracked by an expected-failure test in
+  `tests/page-health.spec.ts`; the cause is not yet verified.
+- Open UX items from the 18 Oct 2026 review (template sign-in page, emoji used
+  as icons, heading structure on Browse, link previews, the web server's plain
+  404 page) and the planned Service Studio changes for each are in
+  `docs/UX_REVIEW.md`.
 
 ## Development workflow
 
@@ -469,7 +490,7 @@ app runs on OutSystems Cloud, not on this design. A real `terraform plan` or
   every publish) and a live test run. Every change is logged with its reason
   in `docs/SERVICE_STUDIO_CHANGES.md`.
 - Supporting reviews: `docs/O11_BEST_PRACTICES_REVIEW.md`,
-  `docs/SECURITY_REVIEW.md`, `docs/ACTIONS_AUDIT.md`, and
-  `docs/ASSESSMENT_CHECKLIST.md`.
+  `docs/SECURITY_REVIEW.md`, `docs/ACTIONS_AUDIT.md`,
+  `docs/ASSESSMENT_CHECKLIST.md`, and `docs/UX_REVIEW.md`.
 - Infrastructure and tests are plain files in this repository and are
   checked locally with `scripts/check-all.sh`.

@@ -20,6 +20,17 @@ variable "extra_tags" {
 
 # ----------------------------- Network -------------------------------------
 
+variable "availability_zones" {
+  description = "The two Availability Zones the VPC spans, pinned by name so the subnet layout never shifts when AWS adds a zone. Must be in var.region."
+  type        = list(string)
+  default     = ["ap-southeast-1a", "ap-southeast-1b"]
+
+  validation {
+    condition     = length(var.availability_zones) == 2 && length(distinct(var.availability_zones)) == 2
+    error_message = "Provide exactly two distinct Availability Zones."
+  }
+}
+
 variable "vpc_cidr" {
   description = "CIDR block for the platform VPC."
   type        = string
@@ -66,9 +77,14 @@ variable "nat_gateway_per_az" {
 }
 
 variable "flow_logs_retention_days" {
-  description = "Retention for VPC flow logs in CloudWatch."
+  description = "Retention for VPC flow logs in CloudWatch. 365 days by default, to keep a year of network audit trail."
   type        = number
-  default     = 90
+  default     = 365
+
+  validation {
+    condition     = contains([1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1096, 1827, 2192, 2557, 2922, 3288, 3653], var.flow_logs_retention_days)
+    error_message = "Must be a retention value CloudWatch Logs accepts (e.g. 90, 365, 731)."
+  }
 }
 
 # ----------------------------- Edge ----------------------------------------
@@ -121,6 +137,11 @@ variable "allowed_rdp_cidr_blocks" {
   description = "Optional CIDRs allowed to RDP (3389) to platform servers. Empty = no RDP rule; use SSM Session Manager instead."
   type        = list(string)
   default     = []
+
+  validation {
+    condition     = alltrue([for c in var.allowed_rdp_cidr_blocks : !contains(["0.0.0.0/0", "::/0"], c)])
+    error_message = "RDP must never be open to the whole internet. Use specific admin CIDRs, or SSM Session Manager."
+  }
 }
 
 variable "dev_environment" {
@@ -255,6 +276,11 @@ variable "db_backup_retention_days" {
   description = "RDS automated backup retention (point-in-time recovery window), separate from the AWS Backup plan."
   type        = number
   default     = 7
+
+  validation {
+    condition     = var.db_backup_retention_days >= 7 && var.db_backup_retention_days <= 35
+    error_message = "Keep at least 7 days of point-in-time recovery (RDS allows up to 35)."
+  }
 }
 
 # ----------------------------- Operations ----------------------------------
@@ -266,9 +292,14 @@ variable "alarm_email" {
 }
 
 variable "log_retention_days" {
-  description = "Retention for application / platform CloudWatch log groups."
+  description = "Retention for application / platform / WAF CloudWatch log groups. 365 days by default (one year of audit trail)."
   type        = number
-  default     = 90
+  default     = 365
+
+  validation {
+    condition     = contains([1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1096, 1827, 2192, 2557, 2922, 3288, 3653], var.log_retention_days)
+    error_message = "Must be a retention value CloudWatch Logs accepts (e.g. 90, 365, 731)."
+  }
 }
 
 variable "backup_daily_retention_days" {

@@ -38,6 +38,9 @@ variable "lock_table_name" {
 }
 
 resource "aws_s3_bucket" "state" {
+  #checkov:skip=CKV_AWS_18:Access logging for the state bucket is left to the account's CloudTrail data events.
+  #checkov:skip=CKV2_AWS_62:No consumer of S3 event notifications for state.
+  #checkov:skip=CKV_AWS_144:Single-region reference; versioning protects state history.
   bucket = var.state_bucket_name
 
   lifecycle {
@@ -50,6 +53,28 @@ resource "aws_s3_bucket_versioning" "state" {
   versioning_configuration {
     status = "Enabled"
   }
+}
+
+# Keep old state versions for 90 days, then expire them; clean up failed uploads.
+resource "aws_s3_bucket_lifecycle_configuration" "state" {
+  bucket = aws_s3_bucket.state.id
+
+  rule {
+    id     = "expire-old-state-versions"
+    status = "Enabled"
+
+    filter {}
+
+    noncurrent_version_expiration {
+      noncurrent_days = 90
+    }
+
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
+    }
+  }
+
+  depends_on = [aws_s3_bucket_versioning.state]
 }
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "state" {
@@ -86,6 +111,7 @@ resource "aws_s3_bucket_policy" "state" {
 }
 
 resource "aws_dynamodb_table" "lock" {
+  #checkov:skip=CKV_AWS_119:The lock table holds only lock IDs and digests; encryption at rest with the AWS-owned key is enough.
   name         = var.lock_table_name
   billing_mode = "PAY_PER_REQUEST"
   hash_key     = "LockID"

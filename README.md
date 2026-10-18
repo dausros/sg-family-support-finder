@@ -12,8 +12,10 @@ is `docs/Low Code Engineer JD.pdf`.
 - Live app: https://personal-uu490uhn.outsystemscloud.com/SGFamilySupportFinder/
   (public, no login)
 - Modules: `SGFamilySupport_LIB` ← `SGFamilySupport_CS` ← `SGFamilySupportFinder`
-- Tests: Playwright, **54 passed / 0 failed / 1 skipped** against the live app (18 Oct 2026).
-  The skipped test is the logged-in admin flow, which needs a CentreAdmin test login.
+- Tests: Playwright, **59 passed / 0 failed / 1 skipped** against the live app, and
+  `terraform test` **10 passed / 0 failed** for the infrastructure (18 Oct 2026, run locally
+  with `scripts/check-all.sh`). The skipped test is the logged-in admin flow,
+  which needs a CentreAdmin test login.
 - Infrastructure: Terraform AWS reference for self-managed OutSystems 11 in `infra/`
 
 ## Submission and access
@@ -25,7 +27,7 @@ is `docs/Low Code Engineer JD.pdf`.
 | Source repo | `dausros/sg-family-support-finder` (private; reviewers need to be added as collaborators) |
 | Tests | `tests/`, how to run below |
 | Infrastructure as code | `infra/`, see `infra/README.md` |
-| CI | `.github/workflows/` (Terraform checks on push/PR; Playwright on manual dispatch) |
+| Automated checks | `scripts/check-all.sh`, run locally (not on GitHub Actions). Latest log: `docs/test-evidence/local-run-2026-10-18.txt` |
 
 Both screens are anonymous, so reviewers can use the app without an
 account. Inspecting the modules in Service Studio needs access to the
@@ -44,21 +46,36 @@ npx playwright show-report        # HTML report
 
 `APP_BASE_URL` can be the app root or a screen URL, because the helpers
 resolve `FindCentres` / `FindSupport` from either. Run serially: the
-personal environment throttles parallel cold loads. In GitHub, run the
-**Playwright (live app)** workflow with the `app_base_url` input. It uploads
-the HTML report as an artifact.
+personal environment throttles parallel cold loads.
 
-### Run the Terraform checks
+### Run every check locally
 
 ```bash
-cd infra
-terraform init -backend=false
-terraform fmt -check -recursive
-terraform validate
+scripts/install-tools.sh   # once: pinned terraform, tflint, checkov (checksum-verified)
+scripts/check-all.sh       # Terraform fmt/validate, tflint, checkov, terraform test, Playwright
+SKIP_E2E=1 scripts/check-all.sh   # infrastructure checks only
 ```
 
-No AWS credentials are needed for these. `terraform plan` and `apply`
-need an account and have not been run; see `infra/README.md`.
+No AWS account or credentials are needed: `terraform test` uses mocked
+providers. A real `terraform plan` and `apply` need an AWS account and have
+not been run; see `infra/README.md`.
+
+## Submission checklist (against the brief)
+
+The brief is page 4 of `docs/Low Code Engineer JD.pdf`. Each ask, where it is
+met, and the evidence. Status as of 18 Oct 2026. Anything not proven is marked as
+such.
+
+| Ask in the brief | Where | Evidence | Status |
+|---|---|---|---|
+| Retrieve and integrate data from data.gov.sg | CS module: three MSF datasets (FSC 55, SSO 24, SFP 15 = 94 records), cached in entities, daily refresh timer | `real-records.spec.ts`, `directory.spec.ts`, `persistence-refresh.spec.ts` pass against the live app | Done. The 03:00 SGT timer run has not been observed yet |
+| Clear, user-friendly interface | Live app: Browse (`FindCentres`) and Find Support (`FindSupport`), 4 languages | `ux-responsive.spec.ts` (320–1440 px, touch targets, keyboard), `translations.spec.ts` | Done |
+| Let users explore and interact with the data | Search, filters, sort, pagination, details drawer, nearest 3 by postal code, guided questionnaire, share/print | `search`, `directory`, `centre-details-panel`, `nearest`, `findsupport`, `wizard`, `share-print` specs | Done |
+| Sound frontend and backend design | LIB → CS → UI modules; server-side role checks; audit log ("Architecture", "Design decisions") | TrueChange 0 errors (see "Known limitations" for the 4 warnings) | Done |
+| IaC for the AWS infrastructure to deploy and operate the OutSystems platforms | `infra/` (Terraform): VPC over 2 AZs, ALB + TLS + WAF, Windows/IIS front-end ASGs, Deployment Controllers, LifeTime, RDS SQL Server (Multi-AZ prod), Amazon MQ (RabbitMQ), KMS, CloudWatch + SNS, AWS Backup, Secrets Manager, remote-state bootstrap | fmt, validate, tflint 0 issues, checkov 323 / 0 / 15 skipped with reasons, `terraform test` 10/10 (`infra/README.md`) | Written and tested offline. **Not verified:** a real `terraform plan` or `apply` in AWS (no AWS account) |
+| Appropriate automated testing | `tests/` (Playwright, live app), `infra/tests/` (`terraform test`), `scripts/check-all.sh` runs all of it | `docs/test-evidence/local-run-2026-10-18.txt`: 59 passed, 0 failed, 1 skipped | Done. Logged-in admin flow skipped (needs a CentreAdmin test login) |
+| Submission 1: access to the OutSystems environment | Public screens need no login | Live URLs above | **Owner action:** create a reviewer user (CentreAdmin if they should see admin) and share Service Studio access |
+| Submission 2: IaC, tests and README in a Git repo, with access | This repo | `infra/`, `tests/`, `infra/tests/`, `scripts/`, this README | **Owner action:** the repo is private; add the reviewers as collaborators |
 
 ## What the app does
 
@@ -291,15 +308,46 @@ results. This keeps the app honest and avoids misleading vulnerable users.
   shared environment state, so moving FSC to the header pattern would be
   cleaner. It was deferred to avoid re-verifying a working path.
 
-## Testing
+## Automated tests
+
+All checks run locally with one script, not on GitHub Actions:
+
+```bash
+scripts/install-tools.sh     # once: pinned terraform 1.9.8, tflint 0.64.0, checkov 3.3.29
+scripts/check-all.sh         # everything; SKIP_E2E=1 for infrastructure only
+```
+
+`check-all.sh` runs Terraform fmt / init / validate (root and `bootstrap/`),
+tflint, checkov, `terraform test`, then the Playwright suite against the live
+app in serial batches (any new spec file is picked up in a final batch). It prints a summary and exits non-zero if
+anything fails. The workflow files in `.github/workflows/` are kept as they
+were, but the results below come from local runs.
+
+**Latest run: 18 Oct 2026, 16:20–16:29 UTC (00:20–00:29 SGT on 19 Oct)** (full output: `docs/test-evidence/local-run-2026-10-18.txt`)
+
+The run used the same infrastructure, test and script files as this commit (on top of
+master `c226138`), from a working copy rather than a git checkout, so the log's
+`Commit:` line reads "not a git checkout". Per-spec counts in the table below match the log.
+
+| Check | What it tests | Result |
+|---|---|---|
+| `terraform fmt -check -recursive` | Formatting of all `.tf` files | pass |
+| `terraform validate` (root, `bootstrap/`) | Syntax, types, references | pass, pass |
+| `tflint --recursive` | Terraform recommended rules + AWS ruleset (e.g. invalid instance types) | 0 issues |
+| `checkov` | Security misconfiguration scan | 323 passed, 0 failed, 15 skipped (each skip has its reason inline, listed in `infra/README.md`) |
+| `terraform test` | 10 offline plan runs with mocked AWS: Multi-AZ prod RDS, encryption, no world-open SQL/RDP, HTTPS with TLS 1.2+, 301 redirect, WAF rules, alarms, backups ≥ 35 days, OutSystems port matrix, rejected bad inputs | 10 passed, 0 failed |
+| Playwright (Chromium, `--workers=1`, live app) | User journeys, data, languages, hotline, responsive layout (table below) | 59 passed, 0 failed, 1 skipped |
+| Real `terraform plan` / `apply` in AWS | Whether AWS accepts the plan | **not run** (no AWS account) |
+
+### Playwright (live app), by spec
 
 Playwright end-to-end and responsive tests in `tests/` run against the live
 app. The two `[MOCKED]` specs abort the browser→OutSystems screen-action
 call to exercise the error/Retry path. They are labelled as mocks and are not
 evidence of server-side fallback.
 
-**Latest full run: 18 Oct 2026, 23:44–23:53 SGT, Chromium, `--workers=1`, against the live app after the actions tidy and Listen fix: 59 passed, 0 failed, 1 skipped (60 tests).** It was run in four batches of 5 minutes or less: 21 + 15 + 18 (+1 skipped) + 5 (the new `listen.spec.ts`). The previous full run (21:59–22:09 SGT, before this round) was 54 passed, 0 failed, 1 skipped.
-In that previous run, the first run of `persistence-refresh.spec.ts` failed 2 tests because the app now shows `Updated dd/MM/yyyy HH:mm SGT` and the parser still expected `dd MMM yyyy, HH:mm`; the parser was updated and the spec re-run: 4/4.
+**Latest full run: 18 Oct 2026, 16:20–16:29 UTC (00:20–00:29 SGT on 19 Oct), Chromium, `--workers=1`, against the live app, through `scripts/check-all.sh`: 59 passed, 0 failed, 1 skipped (60 tests).** Full output: `docs/test-evidence/local-run-2026-10-18.txt`.
+Earlier runs the same day: 23:44–23:53 SGT after the actions tidy and Listen fix, 59 passed, 0 failed, 1 skipped (60 tests); 21:59–22:09 SGT, 54 passed, 0 failed, 1 skipped (55 tests). In the 21:59 run, the first run of `persistence-refresh.spec.ts` failed 2 tests because the app had switched to `Updated dd/MM/yyyy HH:mm SGT` and the parser still expected `dd MMM yyyy, HH:mm`; the parser was updated and the spec re-run: 4/4.
 
 | Spec | Passed | Failed | Covers |
 |---|---|---|---|
@@ -346,11 +394,15 @@ on AWS. It covers:
 - an optional S3 + DynamoDB remote-state backend
 - per-environment tfvars examples
 
-`fmt`, `validate` and `tflint` pass, and checkov reports 314 passed /
-24 failed, with each finding explained. The topology diagram, cost notes
-and assumptions are in `infra/README.md`. The working app runs on
-OutSystems Cloud, not on this design, and `terraform apply` has not been
-run.
+Checked locally on 18 Oct 2026: `fmt`, `validate` and `tflint` pass; checkov
+reports 323 passed / 0 failed / 15 skipped (9 findings fixed, 15 accepted
+with the reason written next to each resource); `terraform test` runs 10
+offline plans with mocked AWS and passes all of them. Those tests found one
+real defect, now fixed: the first `terraform plan` in a fresh account would
+have failed on the LifeTime security-group rules. The topology diagram, cost
+notes, assumptions and the test list are in `infra/README.md`. The working
+app runs on OutSystems Cloud, not on this design. A real `terraform plan` or
+`apply` in AWS has not been run (no AWS account).
 
 ## Assumptions
 

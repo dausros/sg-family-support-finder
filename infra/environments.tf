@@ -30,6 +30,7 @@ module "environment" {
   listener_rule_priority = local.listener_priority[each.key]
   health_check_path      = var.health_check_path
 
+  lifetime_enabled           = var.lifetime.enabled
   lifetime_security_group_id = var.lifetime.enabled ? aws_security_group.lifetime[0].id : ""
   allowed_rdp_cidr_blocks    = var.allowed_rdp_cidr_blocks
 

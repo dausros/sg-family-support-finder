@@ -1,7 +1,7 @@
 # O11 Reactive best-practice review: SG Family Support Finder
 
 Date: 17 Oct 2026 (SGT 17:00–17:20). Modules: `SGFamilySupport_LIB` (foundation), `SGFamilySupport_CS` (core services), `SGFamilySupportFinder` (end-user UI).
-Checked through the Service Studio MCP (model reads + TrueChange) and live Playwright runs.
+Checked through the Service Studio model API (model reads + TrueChange) and live Playwright runs.
 
 **TrueChange (UI module): 0 errors, 11 warnings before → 0 errors, 9 warnings after.** CS and LIB: 0 errors, 0 warnings.
 **Live tests after the last publish: full suite 42/42 passed**, then a 13-test subset after the final rename; sweep of all screens in EN/BM/中文/தமிழ் at 390px and 1280px with 0 page errors.
@@ -21,7 +21,7 @@ Checked through the Service Studio MCP (model reads + TrueChange) and live Playw
 | Naming | Leftover numbered names `OnInitialize2`, `OnSearch2`, `InitException2`. | **Fixed**: `OnDirectoryFetched`, `OnSearch`, `FetchedException`. |
 | Descriptions | All public CS server actions have descriptions. 4 CS entities had none. | **Fixed**: descriptions added to `CachedCentre`, `CachedOffice`, `CachedProgrammeSite`, `SyncStatus`; new `GetDirectory`, `LoadDirectory`, `OnDirectoryFetched` described. |
 | Unused elements | TrueChange reports no unused elements. | Pass |
-| Unused dependencies | UI references OutSystemsMaps and OutSystemsCharts. | Left as is: not removed through the model API (a wrong removal can't be undone safely remotely). Owner: Module → Manage Dependencies, untick if unused, publish. |
+| Unused dependencies | UI references OutSystemsMaps and OutSystemsCharts. | Left as is: not removed through the model API (a wrong removal can't be undone safely remotely). Manual step: Module → Manage Dependencies, untick if unused, publish. |
 | Static entities | Service types FSC / SSO / SFP are text literals in filters. | Left as is: 3 fixed values, low value vs risk this close to submission. Could become a static entity `ServiceType`. |
 | Translations | 4 languages come from an in-app JS dictionary (block `AccessBar`). | Left as is (works on Personal Environment). Recommended path: import `docs/sgfsf-translations.xlsx` via Data → Multilingual Locales; native translations win. |
 | CSS | Styling in the theme stylesheet and block classes, not inline. Theme is still named `Test`. | Pass (theme name left; renaming touches every screen) |

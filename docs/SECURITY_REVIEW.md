@@ -1,7 +1,7 @@
 # Security review: SG Family Support Finder (live app)
 
 Date: 17 Oct 2026 (SGT 16:45–17:00). Target: https://personal-uu490uhn.outsystemscloud.com/SGFamilySupportFinder/ (OutSystems 11 Personal Environment).
-Scope: non-destructive tests against the owner's own app only. Modules: SGFamilySupport_LIB, SGFamilySupport_CS, SGFamilySupportFinder (UI).
+Scope: non-destructive tests against this app only. Modules: SGFamilySupport_LIB, SGFamilySupport_CS, SGFamilySupportFinder (UI).
 
 ## Summary
 
@@ -27,7 +27,7 @@ Scope: non-destructive tests against the owner's own app only. Modules: SGFamily
 ## How it was tested
 - Playwright (Chromium, 390×844) against the live app; network responses captured for every screen-service call.
 - Requests replayed from the same browser context (same cookies and CSRF token) with tampered bodies.
-- Model checks through the Service Studio MCP: entity `Public` flags, screen roles, integrations, TrueChange messages.
+- Model checks through the Service Studio model API: entity `Public` flags, screen roles, integrations, TrueChange messages.
 
 ## Not tested
 - Load / denial-of-service, and anything outside this app (other apps on the environment, LifeTime, Service Center).

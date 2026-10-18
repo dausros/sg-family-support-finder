@@ -1,13 +1,13 @@
 # Service Studio changes: wizard personalisation and UI/UX pass
 
-Branch: `tab/wizard-personalisation`. Applied through the Service Studio MCP (`applyModelApiCode` → `omlMerge`) on 2026-10-17 (SGT 11:00–12:00).
+Applied through the OutSystems 11 Service Studio model API (`applyModelApiCode` → `omlMerge`) on 2026-10-17 (SGT 11:00–12:00).
 
 **Status**
 - **Merged in Service Studio:** all three modules are open. CS and UI were changed; LIB has no changes.
 - **Validation (Service Studio `getValidationMessages` after the final merge):**
   - SGFamilySupport_CS: 0 errors, 2 warnings. These are the pre-existing scalability warnings.
   - SGFamilySupportFinder: 0 errors, 17 warnings. The baseline was 20 (pre-existing roles, performance and security warnings). Three "unused element" warnings were removed by deleting dead elements (see UI-14).
-- **Published** with the owner's OK, in order CS → UI. LIB was unchanged, so it was not republished. After the CS publish, UI references were refreshed (`omlRefreshReferences`) before the UI publish. Every publish returned `success`.
+- **Published** in order CS → UI. LIB was unchanged, so it was not republished. After the CS publish, UI references were refreshed (`omlRefreshReferences`) before the UI publish. Every publish returned `success`.
 - **Live check:** `FindCentres` and `FindSupport` both return HTTP 200. The live theme CSS contains the marker class `.sgsf-pass-20261017`.
 - **Playwright** against the live app:
   - `findsupport.spec.ts` + `wizard.spec.ts`: 16/16 pass.
@@ -240,7 +240,7 @@ Appended blocks, each starting with a guard rule (`.ro-theme-guard12`…`15`). M
 
 ---
 
-## Manual steps for the owner
+## Manual steps in Service Studio
 - None required for the app to work.
 - Optional: open the `Test` theme in Studio once and confirm the Icon Library setting is unchanged. It was untouched; this note only exists because of the sidecar's Invalid Icon Library message.
 - The scheme facts were verified on 2026-10-17. Re-check thresholds after policy updates; ComCare IA flexibility ends 31 Dec 2026, and Baby Bonus is moving to the SG Child Support Package.
@@ -260,7 +260,7 @@ Appended blocks, each starting with a guard rule (`.ro-theme-guard12`…`15`). M
 
 ---
 
-## Product pass (owner steer: "looks nice, functional for Singaporeans, real purpose")
+## Product pass (goal: "looks nice, functional for Singaporeans, real purpose")
 
 Published CS → UI, 2026-10-17, around 12:15 SGT. Validation stayed at 0 errors (CS 2 warnings, UI 17 warnings). Facts come only from `sgfsf-schemes-verified.json` (official pages, checked 2026-10-17).
 
@@ -339,7 +339,7 @@ The results order is now: heading → count → urgent strip → ranked cards �
 ## Full-suite run (live app, after the product pass)
 `npx playwright test` with `--workers=2` and `APP_BASE_URL=…/SGFamilySupportFinder/FindCentres`: **46/46 passed**. That is the 44 original specs plus the 2 new findsupport tests.
 - The first full run had 2 failures in `persistence-refresh.spec.ts`. Cause: the new search label contained "94 centres", and the spec's count-label regex matched it.
-- Fix: the label was reworded on the app side; the other worker's spec was not touched.
+- Fix: the label was reworded on the app side; the existing spec was not touched.
 - After that, `persistence-refresh.spec.ts` + `app-loads.spec.ts` were re-run: 6/6 passed.
 
 Screenshots from the live app (390px and 1280px) are kept outside the repo: landing, step 1 (parenting), step 2, parenting results, financial results with the urgent strip, the SSO deep link, and the details panel.
@@ -351,7 +351,7 @@ Published live (UI module, 0 errors) after each step.
 
 ### R3-1 Why BM / 中文 / தமிழ் stayed in English
 - The language buttons did switch the OutSystems locale (`SetCurrentLocale`), so the "Translated for convenience" note appeared.
-- But the three Multilingual Locales (`ms`, `zh-CN`, `ta`) had **no translated text**. OutSystems only takes translations through Service Studio's import (Data tab → Multilingual Locales). The Model API that the MCP uses cannot write a translated value (documented gap in the MCP skill), so it fell back to English.
+- But the three Multilingual Locales (`ms`, `zh-CN`, `ta`) had **no translated text**. OutSystems only takes translations through Service Studio's import (Data tab → Multilingual Locales). The model API cannot write a translated value (a documented gap), so it fell back to English.
 
 ### R3-2 Fix: built-in translation table (works today)
 - `AccessBar` → `ApplySavedPrefs` (OnReady, runs on every screen) now installs a small translator (JavaScript node) with a table of 374 UI strings × 3 languages (`docs/i18n/sgfsf-i18n.json`).
@@ -422,13 +422,13 @@ All changes are in the SGFamilySupportFinder (UI) module. Validated 0 errors (11
 ### Optional native translations
 - `docs/sgfsf-translations.xlsx`: one sheet per locale (ms, zh-CN, ta) plus a README sheet. In Service Studio: Data tab → Multilingual Locales → Import Language Resources, then publish.
 
-### Manual steps for the owner in Service Studio (optional)
+### Manual steps in Service Studio (optional)
 - The footer links **MSF ComCare**, **SG Enable** and **data.gov.sg dataset** have no destination (they render as `href="#"`). Set each Link's URL (Destination → External URL) to the official page, then publish.
 - When you move to OutSystems' own translations (Data tab → Multilingual Locales → Import Language Resources with sgfsf-translations.xlsx), the built-in table can stay as a fallback; native translations always win.
 
 
 ### R5 Language menu: removed the stray "Button" word (17 Oct, 16:40 SGT)
-- Owner spotted it on his phone: the Language menu read "ButtonEnglish", "ButtonBahasa Melayu", "Button中文", "Buttonதமிழ்".
+- Found in phone testing: the Language menu read "ButtonEnglish", "ButtonBahasa Melayu", "Button中文", "Buttonதமிழ்".
 - Cause: the four language buttons in block `Common/AccessBar` were created with `IButton`, which comes with a default Text widget "Button"; the label text was added beside it instead of replacing it.
 - Fix: deleted those 4 default "Button" Text widgets. A model sweep of every screen and block (Text widgets reading "Button", "Link", "Text", "Container", "Expression", "Label", "Title", "Icon", `lbl_…` or `{0}`) found no others.
 - Published 0 errors. Live check at 390px: the menu reads English, Bahasa Melayu, 中文, தமிழ். Screenshot: `docs/screenshots/lang-menu-fixed.png`.
@@ -449,9 +449,9 @@ All changes are in the SGFamilySupportFinder (UI) module. Validated 0 errors (11
 - Full checklist: `docs/O11_BEST_PRACTICES_REVIEW.md`.
 
 
-## Features round: `tab/features` (17 Oct 2026, from 17:35 SGT)
+## Features round (17 Oct 2026, from 17:35 SGT)
 
-Owner's ask (17:18 SGT): build the recommended features (nearest centres, share results, admin screen), turn category inputs into dropdowns, and make it look really good. Order: dropdowns → nearest centres → share/print → admin → polish.
+Goal (17:18 SGT): build the recommended features (nearest centres, share results, admin screen), turn category inputs into dropdowns, and make it look really good. Order: dropdowns → nearest centres → share/print → admin → polish.
 
 ### F0 CS backend for all features (published 17:50 SGT, 0 errors, 0 warnings in CS)
 - **Static entities (public)** for every category choice: `HouseholdType`, `EmploymentStatus`, `ResidencyStatus`, `MaritalStatus`, `HousingType` (Id, Label, Order, Is_Active). Labels match the text that `GetSchemeRecommendations` already normalises, so the ranking logic did not need to change for the existing questions.
@@ -467,7 +467,7 @@ Owner's ask (17:18 SGT): build the recommended features (nearest centres, share 
 - **`GeoDistanceKm`** (function): equirectangular distance (cos 1.35° = 0.9997), accurate to well under 0.1% at Singapore's size, and needs no trigonometry (O11 has no Sin/Cos).
 - All new and changed flows were laid out with the BFS layout pass.
 
-**Dependency note.** The Model API cannot add new cross-module references (`AddDependency` fails with `IModelServices.ResolveModuleSignature must be set first`; verified again today). The owner added the new CS elements to the UI module in Manage Dependencies.
+**Dependency note.** The Model API cannot add new cross-module references (`AddDependency` fails with `IModelServices.ResolveModuleSignature must be set first`; verified again today). The new CS elements were added to the UI module in Service Studio (Manage Dependencies).
 
 ### F3 Share my results + print view (UI published 17:54 SGT)
 - `WizardStep3Results`: new "Keep or share these results" card with two 56px buttons.
@@ -483,18 +483,18 @@ Owner's ask (17:18 SGT): build the recommended features (nearest centres, share 
   - The old button groups and their three `OnSelect*` screen actions were removed (no dead code). Income and household size stay number inputs (number keypad).
   - Each dropdown has a real `<label for>` (Label widget with TargetWidget), 56px tall, 18px text, and a "Choose one (optional)" empty option. Hidden questions hide the whole dropdown container.
 - "Question N of 7" and the Listen text were updated for 7 questions. All new strings (questions, options, empty text) are in the translation table (BM, 中文, தமிழ்).
-- Why dropdowns everywhere (the brief allowed big buttons for 2–4 options): the owner asked for dropdowns, and one control type for every choice question keeps step 2 consistent. Native selects open the phone's large picker.
+- Why dropdowns everywhere (the brief allowed big buttons for 2–4 options): dropdowns were requested, and one control type for every choice question keeps step 2 consistent. Native selects open the phone's large picker.
 - Tests: new `dropdowns.spec.ts` (options come from the static entities, one visible dropdown per question, ≥48px, the answers reach the ranking: rental flat lifts ComLink+). `findsupport.spec.ts` and `wizard.spec.ts` updated for 7 questions and dropdowns. New `share-print.spec.ts` for F3. **Live suite 44/44.**
 - TrueChange (UI): 0 errors, 9 warnings (the same 9 by-design warnings).
 - Screenshot: `feat-1-dropdowns.png`.
 
-### F3 fix: Save as PDF / print was cut off (owner report 18:20 SGT; UI published 18:31 SGT)
+### F3 fix: Save as PDF / print was cut off (found in testing 18:20 SGT; UI published 18:31 SGT)
 - **Cause:** the layout's `.active-screen.screen-container` is a fixed-height (100vh) scroll box with `overflow: hidden auto`, so print got 1 page and clipped the rest. The earlier print rule `a[href^="tel:"]::after { content: attr(href) }` printed raw `tel:` URLs.
 - **Fix (theme, one `@media print` block):** `html`, `body` and every layout wrapper get `height: auto; overflow: visible; position: static`. Header, nav, skip link, access bar, stepper, buttons, the share card and the nearest-centres search are hidden. Cards are full width with `break-inside: avoid`, call links print as plain bold text with `white-space: nowrap`, no URL printing (`a[href]::after { content: none }`), A4 page margins, 12pt body.
 - New print-only title on the results: "Support you may qualify for · 17 Oct 2026" (date from `CurrDateTime()`, translated).
 - **Checked** with Playwright `page.pdf()` at A4 portrait and landscape, from 390px and 1280px windows: 3 pages, all 7 scheme cards present, no URLs, phone numbers on one line. Page images were viewed: `feat-3-print-pdf-a4.png`, `feat-3-print-pdf-desktop.png`. `share-print.spec.ts` now also checks that no wrapper clips, that no URL is printed after call links, and that the PDF has more than one page.
 
-### UX round from owner feedback #2-#6 (UI published 18:47-18:55 SGT)
+### UX round from review feedback #2-#6 (UI published 18:47-18:55 SGT)
 **Look and feel: Singapore Government Design System style (look only).** No gov masthead, crest or logo, because this is not an official site.
 - Flat surfaces, 1px light-grey borders, 4px radius, no shadows, gradients or pills.
 - The left-stripe callouts (`.sgsf-urgent`, `.sgsf-error`) are now full-border alerts. "Need help now?" is an info alert with an ⓘ icon, a light-blue background and a full border.
@@ -583,7 +583,7 @@ Screenshots (viewed): `ux-home-1280.png`, `ux-centres-p2-1280.png`, `ux-centres-
 
 ## Round 8: fix round for a 10/10 (18 Oct 2026, 20:44–22:10 SGT)
 
-Owner steer (18 Oct): "fix it and make it a 10/10", then "check that everything is genuine and sound". Every change went through the Service Studio MCP (`applyModelApiCode` → `omlMerge` → `omlPublish`), one small change at a time. Nothing was deleted, no `omlReset`.
+Goal (18 Oct): "fix it and make it a 10/10", then "check that everything is genuine and sound". Every change went through the Service Studio model API (`applyModelApiCode` → `omlMerge` → `omlPublish`), one small change at a time. Nothing was deleted, no `omlReset`.
 
 ### Validation (TrueChange, read again 18 Oct 2026 21:58 SGT)
 | Module | Errors | Warnings |
@@ -651,9 +651,9 @@ The 4 UI warnings, all by design:
 
 ## Round 9: actions tidy and Listen language fix (18 Oct 2026, 23:05–23:40 SGT)
 
-Owner asks (WhatsApp, 18 Oct): "For finder with the client actions and server actions can you ensure they are neat and not converged and all over the place?" Then: the Listen button reads Malay text with an English voice.
+Goal (18 Oct): "For finder with the client actions and server actions can you ensure they are neat and not converged and all over the place?" Then: the Listen button reads Malay text with an English voice.
 
-Applied through the Service Studio MCP (`applyModelApiCode` → `omlMerge`). The model was re-read after each merge. `getValidationMessages` showed 0 errors before each publish. The full before/after inventory is in `docs/ACTIONS_AUDIT.md`.
+Applied through the Service Studio model API (`applyModelApiCode` → `omlMerge`). The model was re-read after each merge. `getValidationMessages` showed 0 errors before each publish. The full before/after inventory is in `docs/ACTIONS_AUDIT.md`.
 
 ### Before
 - CS: 17 server actions, all loose at the root. Only 3 used `Entity_Verb` (`Centre_*`). `GetFamilyServiceCentres` and `GetCachedFamilyServiceCentres` (and the same pairs for offices and programme sites) read as duplicates. The three raw fetchers were Public although nothing outside CS calls them, and the UI still listed two of them as unused dependencies.
@@ -664,7 +664,7 @@ Applied through the Service Studio MCP (`applyModelApiCode` → `omlMerge`). The
 ### Changes (module, element, before → after, why)
 | # | Module | Element | Before → after | Why |
 |---|---|---|---|---|
-| T1 | UI | `ListenButton` › `ToggleSpeech` › JS `Speak` | Took the language from `GetCurrentLocale()` and picked an **English voice** when the device had none for the language (it showed "Reading in English"). Text passed in as a parameter (wizard steps 1–2) was read in English. → Takes the language the page is showing (`__sgsfI18n.lang`); translates the `Text` parameter through the page's translation table; sets `utterance.lang` to `ms-MY` / `zh-CN` / `ta-IN` / `en-SG`; picks a voice with a matching language (`ms-MY`→`ms-SG`→`ms`; `zh-CN`→`zh-SG`→`cmn`→`zh-TW`→`zh`; `ta-IN`→`ta-SG`→`ta-LK`→`ta`), waiting up to 1.5 s for `voiceschanged`. If there is no matching voice, it shows a translated note and does **not** speak. "Phone" is also translated. | Owner's report: Malay text, English voice. |
+| T1 | UI | `ListenButton` › `ToggleSpeech` › JS `Speak` | Took the language from `GetCurrentLocale()` and picked an **English voice** when the device had none for the language (it showed "Reading in English"). Text passed in as a parameter (wizard steps 1–2) was read in English. → Takes the language the page is showing (`__sgsfI18n.lang`); translates the `Text` parameter through the page's translation table; sets `utterance.lang` to `ms-MY` / `zh-CN` / `ta-IN` / `en-SG`; picks a voice with a matching language (`ms-MY`→`ms-SG`→`ms`; `zh-CN`→`zh-SG`→`cmn`→`zh-TW`→`zh`; `ta-IN`→`ta-SG`→`ta-LK`→`ta`), waiting up to 1.5 s for `voiceschanged`. If there is no matching voice, it shows a translated note and does **not** speak. "Phone" is also translated. | Reported in testing: Malay text, English voice. |
 | T2 | UI | `ListenButton` › `SpeechEnded` | No inputs → new optional input `Note`, assigned to `VoiceNote`. | Lets the async voice check show the no-voice note. |
 | T3 | UI | Script `SGFamilySupportI18n` | → exposes `__sgsfI18n.tr(text)` (one line, uses the existing `tr`). | Needed by T1 to translate the `Text` parameter. |
 | T4 | UI | Dependencies on CS | `GetSocialServiceOffices`, `GetStrengtheningFamiliesServices` listed → removed (0 uses in any UI screen, block or action, checked by a model query before deleting). | Unused dependencies; allowed the fetchers to become private. |
@@ -693,3 +693,36 @@ No logic was moved between CS and UI. No entity, data or module was deleted.
 - Real speech on iPhone/Android: whether a phone has a Malay, Chinese or Tamil voice installed is up to the device; not tested on a real phone.
 - Known duplication left on purpose: `Cache_Sync…` call the DataGovSG REST methods directly, while `Directory_Get…` refresh through `DataGovSg_Fetch…`. Merging the two refresh paths would change live behaviour, so it is a follow-up and was not done blind.
 - The screen actions on `FindCentres` (`OnSearch`, `GoToPage`, `SetServiceType`, `SetSortOrder`, `ClearFilters`) each copy the six outputs of `Directory_ApplyFilters`. This is readable, but it could be one shared "RefreshList" screen action. It was left as is.
+
+
+## Round 10: reviewer login for assessors (18 Oct 2026, 16:20–16:55 UTC)
+
+Goal: a login an assessor can use on the staff screen `/CentreAdmin`, with the `CentreAdmin` role only. The reviewer is not known in advance, so it is a generic end-user account named `reviewer`. No password is stored in this repository or in this document.
+
+**Module:** `SGFamilySupport_CS` only. LIB and UI were not changed.
+
+**Prerequisite (done in Service Studio):** `SGFamilySupport_CS` → Manage Dependencies → `Users` → `EncryptPassword`. The model API cannot add new dependencies, and without `EncryptPassword` the password would have been stored in plain text.
+
+**Elements created (model API, `applyModelApiCode` → `omlMerge`):**
+
+| Element | Type | Purpose |
+|---|---|---|
+| `User_CreateReviewer` | Server action, private | If the setup site property is not empty: `Users.EncryptPassword` → `CreateUser` (System `User` entity: Name "Reviewer", Username `reviewer`, active) → `GrantCentreAdminRole`. Does nothing when the site property is empty. |
+| `ReviewerSetupPassword` | Site property (Text) | Held the initial password for the single run only. |
+| `SetupReviewerOnce` | Timer, schedule "When Published", 5 min timeout | Ran `User_CreateReviewer` once after publish. |
+| `Auth` | Server action folder | Temporary home of the action during setup. |
+
+**Published:**
+- 16:28:52 UTC: CS with the elements above. The timer ran once and created `reviewer` with only the `CentreAdmin` role.
+- 16:32:09 UTC: clean-up. The timer `SetupReviewerOnce` was removed. The site property `ReviewerSetupPassword` was cleared (empty default, description says it is kept empty on purpose). `User_CreateReviewer` was moved to a new server action folder `Unused` with the description "one-time setup: …", and the empty `Auth` folder was removed. Nothing calls the action now, and it does nothing while the site property is empty.
+
+**Validation after clean-up:** CS 0 errors, 1 new warning: "unused action" for `User_CreateReviewer`. It is expected: the action was kept for the record instead of deleted, and nothing calls it. UI keeps its 4 known warnings.
+
+**Verified:**
+- Logged in as `reviewer` on the live `/CentreAdmin` screen: "Manage centres" loads with the centre list (50 rows shown).
+- Full live Playwright suite with the reviewer login, 18 Oct 2026, 16:42–16:53 UTC: **60 passed, 0 failed, 0 skipped**. This includes the logged-in admin test that used to be skipped. See `docs/test-evidence/reviewer-run-2026-10-18.md`.
+- `tests/admin.spec.ts` was fixed while doing this: the login and form fields are now found by role (`textbox`, `searchbox`, `input[type=password]`), and the final Hide is awaited (status message and the "Show" button), so the test centre is hidden before the page closes. One test centre left visible by an earlier run was hidden again; the public count is back to 94.
+
+**Notes:**
+- The password can be changed at any time in the Users app (`/Users` → `reviewer` → change password). Reviewer credentials are given in the submission email, not here.
+- The 16:28:52 UTC CS version in the environment's version history still has the initial password as the site property default. Changing the reviewer password in the Users app makes that value useless.

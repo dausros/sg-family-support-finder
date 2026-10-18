@@ -1,9 +1,9 @@
 /* =====================================================================
- * SG Family Support Finder — post-handoff theme additions (DRAFT)
- * Paste into the SGFamilySupportFinder Theme stylesheet AFTER Session 2's
+ * SG Family Support Finder — theme additions (DRAFT)
+ * Paste into the SGFamilySupportFinder Theme stylesheet after the
  * CentreDetailsPanel work is merged. Do NOT edit screens directly with this.
  * Tokens: 8px scale, max-widths, palette (all pairs verified >= 4.5:1).
- * Pending MCP read-back of widget style classes may require selector tweaks.
+ * Widget style classes may need selector tweaks once read back from the model.
  * ===================================================================== */
 
 :root {

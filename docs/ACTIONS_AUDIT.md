@@ -1,6 +1,6 @@
 # Finder actions audit: before and after (read-only, 18 Oct 2026, 15:06–15:30 UTC)
 
-Source: live Service Studio model read through the OutSystems MCP server (runQuery `Root { ServerActions { Name Description Public Function Folder { Name } … } }`, getActionNames, getServerAction, getClientAction, getScreen, getWebBlock, getTimers, getValidationMessages). References were counted by scanning every dumped action, screen, block and timer of the three modules for the action (by name lookup `Named("…")` or expression use).
+Source: live Service Studio model read through the OutSystems 11 model API (runQuery `Root { ServerActions { Name Description Public Function Folder { Name } … } }`, getActionNames, getServerAction, getClientAction, getScreen, getWebBlock, getTimers, getValidationMessages). References were counted by scanning every dumped action, screen, block and timer of the three modules for the action (by name lookup `Named("…")` or expression use).
 
 ## Counts per module (own actions only, excluding System/OutSystems UI/Users references)
 

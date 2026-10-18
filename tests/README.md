@@ -1,13 +1,13 @@
 # SG Family Support Finder — Playwright tests
 
-> **Latest full serial run (`--workers=1`): 59 passed, 0 failed, 1 skipped
-> (60 tests, 18 Oct 2026, 23:44–23:53 SGT)** against the live app at
+> **Latest full serial run (`--workers=1`): 60 passed, 0 failed, 0 skipped
+> (60 tests, 18 Oct 2026, 16:42–16:53 UTC)** against the live app at
 > `https://personal-uu490uhn.outsystemscloud.com/SGFamilySupportFinder/`, Chromium,
-> run in four batches of 5 minutes or less, after the actions tidy and the Listen
-> language fix. Per-spec counts are in the root `README.md`. The skipped test is the
-> logged-in admin flow in `admin.spec.ts` (needs `SGFSF_ADMIN_USER` /
-> `SGFSF_ADMIN_PASS` for a CentreAdmin test user).
-> Previous runs: 54 passed / 1 skipped (18 Oct 2026, 21:59 SGT); 47 passed / 1 skipped (17 Oct 2026); 30/30 (16 Oct 2026).
+> in batches of 5 minutes or less, with the `reviewer` CentreAdmin login supplied as
+> `SGFSF_ADMIN_USER` / `SGFSF_ADMIN_PASS`, so the logged-in admin flow in
+> `admin.spec.ts` ran and passed. Evidence: `docs/test-evidence/reviewer-run-2026-10-18.md`.
+> Without those two variables the admin flow is skipped (59 passed, 1 skipped).
+> Previous runs: 59 passed / 1 skipped (18 Oct 2026, 16:20–16:29 UTC, `scripts/check-all.sh`); 54 passed / 1 skipped (18 Oct 2026, 21:59 SGT); 47 passed / 1 skipped (17 Oct 2026); 30/30 (16 Oct 2026).
 
 ## Layout
 
@@ -27,7 +27,7 @@
 | `ux-responsive.spec.ts` | (8) responsive + a11y: zero horizontal overflow on both screens at 320/375/390/768/1024/1280/1440, 390px touch targets, keyboard reach, labels/`lang`/title/skip-link presence, semantic headings + focusable skip link (former `D-A11Y-01/02` gaps, now hard assertions) |
 | `listen.spec.ts` | Listen (read-aloud) uses the page language and a matching voice (ms-MY / zh-CN / ta-IN); no English-voice fallback, translated "no voice" note instead. Web Speech API is stubbed (headless Chromium has no voices); real phone audio is not covered |
 > NOTE (Oct 2026): `D-A11Y-01/02` were `test.fail`-tracked while the app lacked heading roles and the layout flag; both now pass as hard assertions. If either regresses, reinstate `test.fail` rather than deleting the test.
-| `admin.spec.ts` | `CentreAdmin` screen redirects to Login when logged out; logged-in add/edit/hide/show (skipped without a CentreAdmin test login) |
+| `admin.spec.ts` | `CentreAdmin` screen redirects to Login when logged out; logged-in add/edit/hide/show (needs `SGFSF_ADMIN_USER` / `SGFSF_ADMIN_PASS`; skipped without them) |
 | `dropdowns.spec.ts` | Find Support category questions are labelled dropdowns and feed the ranking |
 | `nearest.spec.ts` | postal code → 3 nearest centres sorted by distance; friendly messages for bad/unknown codes |
 | `share-print.spec.ts` | WhatsApp share text, print view not clipped, no printed URLs |

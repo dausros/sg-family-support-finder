@@ -1,37 +1,54 @@
 # SG Family Support Finder
 
 An OutSystems 11 Reactive Web app that helps people in Singapore find social
-services, family support and financial assistance. It brings three
-government open datasets (**94 service locations**) into one searchable
-directory, and adds a guided questionnaire that points people to
-potentially relevant schemes and the right type of service location.
+services, family support and financial assistance. It brings three Ministry
+of Social and Family Development datasets from data.gov.sg (**94 service
+locations**) into one searchable directory, and adds a short guided
+questionnaire that points people to schemes that may fit them and to the
+nearest relevant service locations. Public screens need no login; staff
+manage centres on a role-protected admin screen. The AWS infrastructure to
+run OutSystems 11 self-managed is defined in Terraform, and the app and the
+infrastructure are covered by automated tests that run locally with one script.
 
 Built for the GovTech / MSF Low Code Engineer technical assessment. The brief
-is `docs/Low Code Engineer JD.pdf`.
-
-- Live app: https://personal-uu490uhn.outsystemscloud.com/SGFamilySupportFinder/
-  (public, no login)
-- Modules: `SGFamilySupport_LIB` ← `SGFamilySupport_CS` ← `SGFamilySupportFinder`
-- Tests: Playwright, **59 passed / 0 failed / 1 skipped** against the live app, and
-  `terraform test` **10 passed / 0 failed** for the infrastructure (18 Oct 2026, run locally
-  with `scripts/check-all.sh`). The skipped test is the logged-in admin flow,
-  which needs a CentreAdmin test login.
-- Infrastructure: Terraform AWS reference for self-managed OutSystems 11 in `infra/`
+is `docs/Low Code Engineer JD.pdf` (the assessment is on page 4).
 
 ## Submission and access
 
 | What | Where |
 |---|---|
-| OutSystems app (Browse) | https://personal-uu490uhn.outsystemscloud.com/SGFamilySupportFinder/FindCentres |
-| OutSystems app (Find Support) | https://personal-uu490uhn.outsystemscloud.com/SGFamilySupportFinder/FindSupport |
-| Source repo | `dausros/sg-family-support-finder` (private; reviewers need to be added as collaborators) |
-| Tests | `tests/`, how to run below |
-| Infrastructure as code | `infra/`, see `infra/README.md` |
-| Automated checks | `scripts/check-all.sh`, run locally (not on GitHub Actions). Latest log: `docs/test-evidence/local-run-2026-10-18.txt` |
+| Live app (public, no login) | https://personal-uu490uhn.outsystemscloud.com/SGFamilySupportFinder/ |
+| Browse Support Services | https://personal-uu490uhn.outsystemscloud.com/SGFamilySupportFinder/FindCentres |
+| Find Support (questionnaire) | https://personal-uu490uhn.outsystemscloud.com/SGFamilySupportFinder/FindSupport |
+| Staff screen (CentreAdmin role) | https://personal-uu490uhn.outsystemscloud.com/SGFamilySupportFinder/CentreAdmin. Reviewer credentials are provided separately in the submission email. |
+| Source repository (public) | https://github.com/dausros/sg-family-support-finder |
+| Modules | `SGFamilySupport_LIB` ← `SGFamilySupport_CS` ← `SGFamilySupportFinder` (UI) |
+| Infrastructure as code | `infra/` (Terraform, AWS), see `infra/README.md` |
+| Automated tests | `tests/` (Playwright, live app), `infra/tests/` (`terraform test`) |
+| One script for every check | `scripts/check-all.sh`, run locally (not on GitHub Actions) |
+| Test evidence | `docs/test-evidence/` |
+| Change log of every Service Studio change | `docs/SERVICE_STUDIO_CHANGES.md` |
 
-Both screens are anonymous, so reviewers can use the app without an
-account. Inspecting the modules in Service Studio needs access to the
-OutSystems personal environment, which the owner grants separately.
+The `reviewer` login has the `CentreAdmin` role only. It can add, edit, hide
+and show centres, and has no other role. Inspecting the modules in
+Service Studio needs access to the OutSystems personal environment, which is
+granted separately on request.
+
+### Latest results
+
+| Check | Date | Result |
+|---|---|---|
+| Playwright, live app, Chromium, `--workers=1`, with the reviewer login | 18 Oct 2026, 16:42–16:53 UTC | **60 passed, 0 failed, 0 skipped** (`docs/test-evidence/reviewer-run-2026-10-18.md`) |
+| `terraform test` (offline, mocked AWS provider) | 18 Oct 2026 | **10 passed, 0 failed** |
+| checkov | 18 Oct 2026 | **323 passed, 0 failed, 15 skipped** (each skip has its reason inline; listed in `infra/README.md`) |
+| tflint (with the AWS ruleset) | 18 Oct 2026 | **0 issues** |
+| `terraform fmt -check`, `terraform validate` | 18 Oct 2026 | pass |
+| Real `terraform plan` / `apply` in an AWS account | | **not run** (no AWS account) |
+
+The infrastructure results and the full Playwright output of the
+`scripts/check-all.sh` run (16:20–16:29 UTC; 59 passed, 1 skipped, the
+skipped test being the logged-in admin flow before the reviewer login
+existed) are in `docs/test-evidence/local-run-2026-10-18.txt`.
 
 ### Run the tests
 
@@ -46,7 +63,9 @@ npx playwright show-report        # HTML report
 
 `APP_BASE_URL` can be the app root or a screen URL, because the helpers
 resolve `FindCentres` / `FindSupport` from either. Run serially: the
-personal environment throttles parallel cold loads.
+personal environment throttles parallel cold loads. The logged-in admin test
+runs only when `SGFSF_ADMIN_USER` and `SGFSF_ADMIN_PASS` are set for a
+CentreAdmin user; without them it is skipped.
 
 ### Run every check locally
 
@@ -62,20 +81,20 @@ not been run; see `infra/README.md`.
 
 ## Submission checklist (against the brief)
 
-The brief is page 4 of `docs/Low Code Engineer JD.pdf`. Each ask, where it is
-met, and the evidence. Status as of 18 Oct 2026. Anything not proven is marked as
-such.
+Each line is an ask from page 4 of `docs/Low Code Engineer JD.pdf`, where it is
+met, and the evidence. Status as of 18 Oct 2026. Anything not proven is marked
+as such.
 
 | Ask in the brief | Where | Evidence | Status |
 |---|---|---|---|
-| Retrieve and integrate data from data.gov.sg | CS module: three MSF datasets (FSC 55, SSO 24, SFP 15 = 94 records), cached in entities, daily refresh timer | `real-records.spec.ts`, `directory.spec.ts`, `persistence-refresh.spec.ts` pass against the live app | Done. The 03:00 SGT timer run has not been observed yet |
-| Clear, user-friendly interface | Live app: Browse (`FindCentres`) and Find Support (`FindSupport`), 4 languages | `ux-responsive.spec.ts` (320–1440 px, touch targets, keyboard), `translations.spec.ts` | Done |
-| Let users explore and interact with the data | Search, filters, sort, pagination, details drawer, nearest 3 by postal code, guided questionnaire, share/print | `search`, `directory`, `centre-details-panel`, `nearest`, `findsupport`, `wizard`, `share-print` specs | Done |
-| Sound frontend and backend design | LIB → CS → UI modules; server-side role checks; audit log ("Architecture", "Design decisions") | TrueChange 0 errors (see "Known limitations" for the 4 warnings) | Done |
-| IaC for the AWS infrastructure to deploy and operate the OutSystems platforms | `infra/` (Terraform): VPC over 2 AZs, ALB + TLS + WAF, Windows/IIS front-end ASGs, Deployment Controllers, LifeTime, RDS SQL Server (Multi-AZ prod), Amazon MQ (RabbitMQ), KMS, CloudWatch + SNS, AWS Backup, Secrets Manager, remote-state bootstrap | fmt, validate, tflint 0 issues, checkov 323 / 0 / 15 skipped with reasons, `terraform test` 10/10 (`infra/README.md`) | Written and tested offline. **Not verified:** a real `terraform plan` or `apply` in AWS (no AWS account) |
-| Appropriate automated testing | `tests/` (Playwright, live app), `infra/tests/` (`terraform test`), `scripts/check-all.sh` runs all of it | `docs/test-evidence/local-run-2026-10-18.txt`: 59 passed, 0 failed, 1 skipped | Done. Logged-in admin flow skipped (needs a CentreAdmin test login) |
-| Submission 1: access to the OutSystems environment | Public screens need no login | Live URLs above | **Owner action:** create a reviewer user (CentreAdmin if they should see admin) and share Service Studio access |
-| Submission 2: IaC, tests and README in a Git repo, with access | This repo | `infra/`, `tests/`, `infra/tests/`, `scripts/`, this README | **Owner action:** the repo is private; add the reviewers as collaborators |
+| Retrieve and integrate data from any dataset on data.gov.sg | CS module: three MSF datasets (FSC 55, SSO 24, SFP 15 = 94 records), cached in entities, daily refresh timer | `real-records.spec.ts`, `directory.spec.ts`, `persistence-refresh.spec.ts` pass against the live app | Done. The 03:00 SGT timer run has not been observed yet |
+| Present the data through a clear and user-friendly interface | Live app: Browse (`FindCentres`) and Find Support (`FindSupport`), 4 languages | `ux-responsive.spec.ts` (320–1440 px, touch targets, keyboard), `translations.spec.ts` | Done |
+| Provide capabilities for users to explore and interact with the data | Search, filters, sort, pagination, details drawer, nearest 3 by postal code, guided questionnaire, share/print, staff add/edit/hide/show | `search`, `directory`, `centre-details-panel`, `nearest`, `findsupport`, `wizard`, `share-print`, `admin` specs | Done |
+| Demonstrate sound frontend and backend application design | LIB → CS → UI modules; actions grouped by area with `Area_Verb` names; server-side role checks; audit log ("Architecture", "Design decisions") | TrueChange 0 errors in all modules (warnings listed under "Known limitations") | Done |
+| IaC that defines the AWS infrastructure to deploy and operate the OutSystems platforms | `infra/` (Terraform): VPC over 2 AZs, ALB + TLS + WAF, Windows/IIS front-end ASGs, Deployment Controllers, LifeTime, RDS SQL Server (Multi-AZ prod), Amazon MQ (RabbitMQ), KMS, CloudWatch + SNS, AWS Backup, Secrets Manager, remote-state bootstrap | fmt, validate, tflint 0 issues, checkov 323 / 0 / 15 skipped with reasons, `terraform test` 10/10 (`infra/README.md`) | Written and tested offline. **Not verified:** a real `terraform plan` or `apply` in AWS (no AWS account) |
+| Include appropriate automated testing | `tests/` (Playwright, live app), `infra/tests/` (`terraform test`), `scripts/check-all.sh` runs all of it | Playwright 60 passed, 0 failed, 0 skipped with the reviewer login; `docs/test-evidence/` | Done |
+| Submission 1: provide access to the OutSystems environment | Public screens need no login; `/CentreAdmin` with the `reviewer` login (CentreAdmin role only) | Reviewer login checked on the live admin screen; admin test passed with it | Done. Credentials are in the submission email |
+| Submission 2: IaC, automated tests and README in a Git repository, with access | This public repository | `infra/`, `tests/`, `infra/tests/`, `scripts/`, this README | Done |
 
 ## What the app does
 
@@ -200,9 +219,9 @@ SGFamilySupportFinder (Reactive)    screens, blocks, navigation, forms, map
 
 ### Action structure
 
-Checked in Service Studio through the MCP on 18 Oct 2026 (folder, Public flag and description read back after the change). Naming is `Area_Verb…`. Only what the UI calls is Public.
+Checked in Service Studio through the model API on 18 Oct 2026 (folder, Public flag and description read back after the change). Naming is `Area_Verb…`. Only what the UI calls is Public.
 
-**SGFamilySupport_CS: 17 server actions, 0 client actions, in 6 folders**
+**SGFamilySupport_CS: 17 server actions in use, 0 client actions, in 6 folders** (plus the one-time setup action `User_CreateReviewer` in an `Unused` folder, last row)
 
 | Folder | Action | Public | Called by |
 |---|---|---|---|
@@ -223,6 +242,7 @@ Checked in Service Studio through the MCP on 18 Oct 2026 (folder, Public flag an
 | Cache | `Cache_SyncProgrammeSites` | No | `Cache_SyncAll` |
 | Cache | `Cache_RemoveOverriddenRows` | No | `Cache_SyncCentres`, `Directory_GetFamilyServiceCentres` |
 | Geo | `Geo_DistanceKm` (function) | No | `Directory_GetNearestCentres` |
+| Unused | `User_CreateReviewer` | No | Nothing. Ran once on 18 Oct 2026 to create the `reviewer` login; kept for the record and does nothing while its site property is empty (`docs/SERVICE_STUDIO_CHANGES.md`, Round 10) |
 
 **SGFamilySupport_LIB:** structures only, no actions.
 
@@ -275,7 +295,7 @@ Directions deep-link to Google Maps rather than an embedded router.
 
 **Timers.** Both timers were first made by hand in Service Studio.
 On 18 Oct 2026 the model showed `RefreshDatasetCache` with no schedule, so
-it never ran on its own. Its schedule was set through the MCP model API
+it never ran on its own. Its schedule was set through the Service Studio model API
 (`Schedule "19:00"`, `CronSchedule "0 19 * * *"`: 19:00 UTC = 03:00
 SGT, the quietest hour) and published. The refresh-through getter means the
 app still works if a timer is missing or late.
@@ -336,7 +356,7 @@ master `c226138`), from a working copy rather than a git checkout, so the log's
 | `tflint --recursive` | Terraform recommended rules + AWS ruleset (e.g. invalid instance types) | 0 issues |
 | `checkov` | Security misconfiguration scan | 323 passed, 0 failed, 15 skipped (each skip has its reason inline, listed in `infra/README.md`) |
 | `terraform test` | 10 offline plan runs with mocked AWS: Multi-AZ prod RDS, encryption, no world-open SQL/RDP, HTTPS with TLS 1.2+, 301 redirect, WAF rules, alarms, backups ≥ 35 days, OutSystems port matrix, rejected bad inputs | 10 passed, 0 failed |
-| Playwright (Chromium, `--workers=1`, live app) | User journeys, data, languages, hotline, responsive layout (table below) | 59 passed, 0 failed, 1 skipped |
+| Playwright (Chromium, `--workers=1`, live app) | User journeys, data, languages, hotline, responsive layout, staff admin (table below) | 59 passed, 0 failed, 1 skipped in this run (admin login not yet available); **60 passed, 0 failed, 0 skipped** in the re-run with the reviewer login (below) |
 | Real `terraform plan` / `apply` in AWS | Whether AWS accepts the plan | **not run** (no AWS account) |
 
 ### Playwright (live app), by spec
@@ -346,12 +366,13 @@ app. The two `[MOCKED]` specs abort the browser→OutSystems screen-action
 call to exercise the error/Retry path. They are labelled as mocks and are not
 evidence of server-side fallback.
 
-**Latest full run: 18 Oct 2026, 16:20–16:29 UTC (00:20–00:29 SGT on 19 Oct), Chromium, `--workers=1`, against the live app, through `scripts/check-all.sh`: 59 passed, 0 failed, 1 skipped (60 tests).** Full output: `docs/test-evidence/local-run-2026-10-18.txt`.
-Earlier runs the same day: 23:44–23:53 SGT after the actions tidy and Listen fix, 59 passed, 0 failed, 1 skipped (60 tests); 21:59–22:09 SGT, 54 passed, 0 failed, 1 skipped (55 tests). In the 21:59 run, the first run of `persistence-refresh.spec.ts` failed 2 tests because the app had switched to `Updated dd/MM/yyyy HH:mm SGT` and the parser still expected `dd MMM yyyy, HH:mm`; the parser was updated and the spec re-run: 4/4.
+**Latest full run: 18 Oct 2026, 16:42–16:53 UTC (00:42–00:53 SGT on 19 Oct), Chromium, `--workers=1`, against the live app, with the `reviewer` CentreAdmin login: 60 passed, 0 failed, 0 skipped (60 tests).** Evidence: `docs/test-evidence/reviewer-run-2026-10-18.md`.
+
+Earlier runs the same day: 16:20–16:29 UTC through `scripts/check-all.sh`, 59 passed, 0 failed, 1 skipped (the admin flow, before the login existed; full output in `docs/test-evidence/local-run-2026-10-18.txt`); 23:44–23:53 SGT after the actions tidy and Listen fix, 59 passed, 0 failed, 1 skipped (60 tests); 21:59–22:09 SGT, 54 passed, 0 failed, 1 skipped (55 tests). In the 21:59 run, the first run of `persistence-refresh.spec.ts` failed 2 tests because the app had switched to `Updated dd/MM/yyyy HH:mm SGT` and the parser still expected `dd MMM yyyy, HH:mm`; the parser was updated and the spec re-run: 4/4.
 
 | Spec | Passed | Failed | Covers |
 |---|---|---|---|
-| `admin.spec.ts` | 1 | 0 | CentreAdmin screen redirects to Login when logged out; logged-in add/hide/show (skipped without a test admin login) (1 skipped) |
+| `admin.spec.ts` | 2 | 0 | CentreAdmin screen redirects to Login when logged out; logged-in add, edit, hide and show a centre (needs `SGFSF_ADMIN_USER` / `SGFSF_ADMIN_PASS`, skipped without them) |
 | `api-error-retry.mock.spec.ts` | 1 | 0 | [MOCKED] screen-action failure shows error + Retry |
 | `app-loads.spec.ts` | 2 | 0 | app loads, loading indicator resolves |
 | `centre-details-panel.spec.ts` | 5 | 0 | details drawer open/update/Escape, directions/contact targets, mobile sheet |
@@ -427,15 +448,28 @@ app runs on OutSystems Cloud, not on this design. A real `terraform plan` or
 - TrueChange (read 18 Oct 2026): UI 0 errors / 4 warnings, all by design:
   3 public read-only directory fetches on an anonymous screen (the
   "Security Warnings" line at each UI publish) and one On Ready data
-  access. CS and LIB are 0 errors / 0 warnings.
+  access. CS 0 errors / 1 warning: "unused action" for the one-time
+  `User_CreateReviewer`, kept for the record instead of deleted. LIB 0 / 0.
 - No OAP export of the modules is committed yet.
+- The AWS infrastructure is checked offline only (fmt, validate, tflint,
+  checkov, `terraform test` with a mocked provider). A real `terraform plan`
+  or `apply` in an AWS account has not been run, because no AWS account was
+  available. The Terraform provisions AWS infrastructure only: installing and
+  licensing the Platform Server, Service Center and LifeTime on the hosts is
+  out of its scope (`infra/README.md`).
+- The admin test adds a test centre on the live app and leaves it hidden, so
+  each logged-in run adds one hidden row to the admin list.
+- Tests run on Chromium only, against the live personal environment, which
+  can be slow on a cold start.
 
 ## Development workflow
 
-The app is built in Service Studio, with OpenCode driving the official
-OutSystems 11 Service Studio MCP server. Project skills live in
-`.opencode/skills/`: `o11-mcp`, `servicestudio-mcp-oml`,
-`datagov-integration`, `assessment-testing` and `aws-reference-iac`.
-Agents are in `.opencode/agents/`, and the working rules are in `AGENTS.md`.
-`opencode.example.json` shows the MCP client configuration with a
-placeholder URL. The real tunnel URL is never committed.
+- The app is built in Service Studio (OutSystems 11). Model changes were
+  made in small steps, each followed by a TrueChange check (0 errors before
+  every publish) and a live test run. Every change is logged with its reason
+  in `docs/SERVICE_STUDIO_CHANGES.md`.
+- Supporting reviews: `docs/O11_BEST_PRACTICES_REVIEW.md`,
+  `docs/SECURITY_REVIEW.md`, `docs/ACTIONS_AUDIT.md`, and
+  `docs/ASSESSMENT_CHECKLIST.md`.
+- Infrastructure and tests are plain files in this repository and are
+  checked locally with `scripts/check-all.sh`.

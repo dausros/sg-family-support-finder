@@ -9,7 +9,7 @@ import { requireBaseURL, appUrl, waitForData } from './helpers';
  *
  * Locked implementation contracts asserted here:
  *  (1) Results-count label keeps matching /\d+\s*(centres|results|found)/i
- *      and appends ` · Updated dd MMM yyyy, HH:mm` whenever LastSynced is
+ *      and appends ` · Updated dd/MM/yyyy HH:mm SGT` whenever LastSynced is
  *      known (e.g. `55 centres found · Updated 16 Oct 2026, 19:05`), plus
  *      ` · <CacheNotice>` when a stale warning exists.
  *  (2) Repeat visits with a fresh cache (<24h) perform ZERO upstream
@@ -32,7 +32,7 @@ import { requireBaseURL, appUrl, waitForData } from './helpers';
  *  - bare 90s expects / fixed sleeps flaked under 429 throttling →
  *    all specs use waitForData-style polling + Retry click-through.
  *  - loose timestamp regex (`\d{1,2}:\d{2}|today|…`) matched any clock time
- *    → spec2 parses `Updated dd MMM yyyy, HH:mm` and asserts age < 24h.
+ *    → spec2 parses `Updated dd/MM/yyyy HH:mm SGT` and asserts age < 24h.
  *  - count-only equality cannot prove "no duplicates" → spec3 asserts
  *    row-count AND rendered name-set equality across reload and after Retry.
  *  - aborting a data.gov.sg URL in the browser is a silent no-op (O11
@@ -46,8 +46,10 @@ import { requireBaseURL, appUrl, waitForData } from './helpers';
  */
 
 const COUNT_RE = /\d+\s*(centres|results|found)/i;
-// e.g. "55 centres found · Updated 16 Oct 2026, 19:05"
-const UPDATED_RE = /Updated\s+(\d{1,2}\s+[A-Za-z]{3}\s+\d{4},\s*\d{1,2}:\d{2})/;
+// e.g. "Showing 1–10 of 94 found · Updated 18/10/2026 21:38 SGT"
+// (Singapore time since 18 Oct 2026; before that "Updated 16 Oct 2026, 19:05"
+// in the browser's own timezone).
+const UPDATED_RE = /Updated\s+(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})\s+SGT/;
 const STALE_WARNING =
   'Live data is unavailable. Showing last updated records.';
 // Browser→O11 screen-action channels carrying this app's data (NOT the
@@ -62,26 +64,12 @@ const DATA_CALLS = [
   '**/screenservices/**/DataActionGetDirectory*',
 ];
 
-const MONTHS: Record<string, number> = {
-  jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
-  jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
-};
-
-/** Parse `dd MMM yyyy, HH:mm` (e.g. `16 Oct 2026, 19:05`) to a Date. */
+/** Parse `dd/MM/yyyy HH:mm SGT` (Singapore, UTC+8) to an absolute Date. */
 function parseUpdatedAt(text: string): Date | null {
-  const m = text.match(UPDATED_RE);
+  const m = text.replace(/\u00a0/g, ' ').match(UPDATED_RE);
   if (!m) return null;
-  const parts = m[1].match(/(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4}),\s*(\d{1,2}):(\d{2})/);
-  if (!parts) return null;
-  const month = MONTHS[parts[2].toLowerCase()];
-  if (month === undefined) return null;
-  return new Date(
-    Number(parts[3]),
-    month,
-    Number(parts[1]),
-    Number(parts[4]),
-    Number(parts[5]),
-  );
+  const [, dd, mm, yyyy, hh, mi] = m;
+  return new Date(Date.UTC(Number(yyyy), Number(mm) - 1, Number(dd), Number(hh) - 8, Number(mi)));
 }
 
 /** Visible results-count label text (includes `· Updated …` suffix). */
@@ -130,7 +118,7 @@ test(
     // observable from the browser as an UNCHANGED `Updated …` timestamp.
     expect(
       parseUpdatedAt(firstLabel),
-      'first visit should expose an `Updated dd MMM yyyy, HH:mm` timestamp',
+      'first visit should expose an `Updated dd/MM/yyyy HH:mm SGT` timestamp',
     ).not.toBeNull();
     expect(
       secondLabel,

@@ -12,7 +12,7 @@ is `docs/Low Code Engineer JD.pdf`.
 - Live app: https://personal-uu490uhn.outsystemscloud.com/SGFamilySupportFinder/
   (public, no login)
 - Modules: `SGFamilySupport_LIB` ← `SGFamilySupport_CS` ← `SGFamilySupportFinder`
-- Tests: Playwright, **47 passed / 0 failed / 1 skipped** against the live app (17 Oct 2026).
+- Tests: Playwright, **54 passed / 0 failed / 1 skipped** against the live app (18 Oct 2026).
   The skipped test is the logged-in admin flow, which needs a CentreAdmin test login.
 - Infrastructure: Terraform AWS reference for self-managed OutSystems 11 in `infra/`
 
@@ -152,7 +152,7 @@ SGFamilySupportFinder (Reactive)    screens, blocks, navigation, forms, map
 | Module | Owns |
 |---|---|
 | `SGFamilySupport_LIB` | Public Structures, e.g. `FamilyServiceCentre` and `SupportLocation` (the contract the UI and CS share). No logic, REST or UI. |
-| `SGFamilySupport_CS` | The `DataGovSG` REST client (poll-download + GeoJSON download), GeoJSON DTO Structures and mapping. **Persistent entities** `CachedCentre`, `CachedOffice`, `CachedProgrammeSite` and `SyncStatus`, plus the static `SchemeCatalogue`. Sync actions, cache-first public getters and `GetSchemeRecommendations`. |
+| `SGFamilySupport_CS` | The `DataGovSG` REST client (poll-download + GeoJSON download), GeoJSON DTO Structures and mapping. **Persistent entities** `CachedCentre`, `CachedOffice`, `CachedProgrammeSite`, `SyncStatus` and `AuditLog` (append-only record of admin changes), plus the static `SchemeCatalogue`. Sync actions, cache-first public getters and `GetSchemeRecommendations`. |
 | `SGFamilySupportFinder` | `FindCentres` and `FindSupport` screens and the reusable `CentreDetailsPanel` block (Leaflet map). Client-side filtering, sort and pagination. Calls only public CS actions; no REST, no business rules. |
 
 ### Persistence and caching
@@ -176,9 +176,10 @@ SGFamilySupportFinder (Reactive)    screens, blocks, navigation, forms, map
     the new rows.
   - If upstream fails and rows exist, the getter returns them with "Live
     data is unavailable. Showing last updated records."
-- **Timers:** `SeedDatasetCache` (on publish) and `RefreshDatasetCache`
-  (daily) call `SyncDatasetCaches`. If a timer never fires, the first page
-  load seeds the cache anyway.
+- **Timers:** `SeedDatasetCache` (when published) and `RefreshDatasetCache`
+  (daily at **03:00 SGT**: schedule 19:00 server time, UTC) call
+  `SyncDatasetCaches`. If a timer never fires, the first page load after
+  the 24 h window refreshes the cache anyway.
 
 ## Design decisions and trade-offs
 
@@ -220,11 +221,12 @@ tiles come from a public CDN under its usage policy, which a production
 government service would replace with OneMap (SLA, local addressing).
 Directions deep-link to Google Maps rather than an embedded router.
 
-**Timers created in Service Studio.** The MCP model API writes a
-timer-schedule feature that Service Studio 11.55.92 refuses to merge, so
-both timers were made by hand in Studio. They exist only in the module,
-not in any scripted change. The refresh-through getter means the app still
-works if a timer is missing.
+**Timers.** Both timers were first made by hand in Service Studio.
+On 18 Oct 2026 the model showed `RefreshDatasetCache` with no schedule, so
+it never ran on its own. Its schedule was set through the MCP model API
+(`Schedule "19:00"`, `CronSchedule "0 19 * * *"`: 19:00 UTC = 03:00
+SGT, the quietest hour) and published. The refresh-through getter means the
+app still works if a timer is missing or late.
 
 **429 and partial-failure handling.** Each dataset is fetched and cached
 independently.
@@ -261,7 +263,8 @@ app. The two `[MOCKED]` specs abort the browser→OutSystems screen-action
 call to exercise the error/Retry path. They are labelled as mocks and are not
 evidence of server-side fallback.
 
-**Latest full run: 17 Oct 2026 20:22 SGT, Chromium, against the live app: 47 passed, 0 failed, 1 skipped.**
+**Latest full run: 18 Oct 2026, 21:59–22:09 SGT, Chromium, `--workers=1`, against the live app: 54 passed, 0 failed, 1 skipped (55 tests).**
+Run in four batches of 5 minutes or less. The first run of `persistence-refresh.spec.ts` failed 2 tests because the app now shows `Updated dd/MM/yyyy HH:mm SGT` and the parser still expected `dd MMM yyyy, HH:mm`; the parser was updated and the spec re-run: 4/4.
 
 | Spec | Passed | Failed | Covers |
 |---|---|---|---|
@@ -273,12 +276,15 @@ evidence of server-side fallback.
 | `directory.spec.ts` | 4 | 0 | 94 records across 3 types, Service type dropdown + search, OSUI Pagination, Sort by dropdown |
 | `dropdowns.spec.ts` | 1 | 0 | category questions are labelled dropdowns and feed the ranking |
 | `findsupport.spec.ts` | 10 | 0 | 4 needs without login, one question per screen, ranking (KidSTART first for parenting, "May not apply" only on a published rule), real tel: links, skip-the-rest, language picker, bigger text |
+| `hotline.spec.ts` | 2 | 0 | Browse "Help now" is `tel:18002220000`; Find Support money results call ComCare 1800 222 0000; 1800 777 0000 appears nowhere |
 | `nearest.spec.ts` | 2 | 0 | bad/unknown postal code messages; 3 nearest sorted by distance with call + directions |
 | `no-results.spec.ts` | 1 | 0 | empty state for a gibberish query |
-| `persistence-refresh.spec.ts` | 4 | 0 | cached timestamp stable, <24 h freshness, no duplicates, [MOCKED] fault + Retry |
+| `persistence-refresh.spec.ts` | 4 | 0 | cached timestamp stable, <24 h freshness (SGT stamp), no duplicates, [MOCKED] fault + Retry |
 | `real-records.spec.ts` | 1 | 0 | real FSC records from data.gov.sg render |
 | `search.spec.ts` | 2 | 0 | case-insensitive search by name/address |
 | `share-print.spec.ts` | 1 | 0 | WhatsApp link text, print view not clipped, no printed URLs, multi-page PDF |
+| `timezone.spec.ts` | 1 | 0 | "Updated … SGT" is identical under UTC, Asia/Singapore and America/Los_Angeles device clocks, and under 48 h old |
+| `translations.spec.ts` | 4 | 0 | Browse in English, Bahasa Melayu, 中文 and தமிழ்: filter labels, dropdown options, SGT stamp (no stray comma in 中文), Call links' accessible names |
 | `ux-responsive.spec.ts` | 7 | 0 | no horizontal overflow 320–1440 px, 390 px touch targets, keyboard reach, headings/labels/lang, skip link |
 | `wizard.spec.ts` | 4 | 0 | need selection doesn't auto-navigate, Next/Back keeps the selection, household dropdown, all optional answers skippable |
 
@@ -286,7 +292,7 @@ Not covered by automated tests:
 - Server-side unit tests of CS logic (e.g. BDDFramework). Caching is
   proven through observable behaviour (stable timestamp, zero refetch,
   no duplicates), not by asserting on entities directly.
-- The timers firing.
+- The timers firing (the 03:00 SGT run is not observed by any test).
 - Cross-browser runs beyond Chromium.
 
 ## Infrastructure (AWS reference)
@@ -326,12 +332,14 @@ run.
 
 ## Known limitations
 
-- The two timers exist only in the Service Studio module (see design
-  decisions).
+- The timers live only in the Service Studio module (see design
+  decisions). The first scheduled 03:00 SGT run is on 19 Oct 2026 and has
+  not been observed yet.
 - The FSC download-URL handoff uses a site property (see design decisions).
-- TrueChange shows UI 0 errors / 5 warnings, all by design: the large
-  translation script, 3 public read-only directory fetches on an anonymous
-  screen, and one On Ready data access. CS and LIB are 0 errors / 0 warnings.
+- TrueChange (read 18 Oct 2026): UI 0 errors / 4 warnings, all by design:
+  3 public read-only directory fetches on an anonymous screen (the
+  "Security Warnings" line at each UI publish) and one On Ready data
+  access. CS and LIB are 0 errors / 0 warnings.
 - No OAP export of the modules is committed yet.
 
 ## Development workflow

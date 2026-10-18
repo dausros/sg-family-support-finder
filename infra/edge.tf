@@ -36,6 +36,10 @@ resource "aws_vpc_security_group_egress_rule" "alb_to_targets" {
 # ----------------------------- Access logs ---------------------------------
 
 resource "aws_s3_bucket" "alb_logs" {
+  #checkov:skip=CKV_AWS_145:ALB access-log delivery supports only SSE-S3 (AWS docs, "Enable access logs for your Application Load Balancer").
+  #checkov:skip=CKV_AWS_18:This is itself the log bucket; logging it to another bucket is left out of the reference.
+  #checkov:skip=CKV2_AWS_62:No consumer of S3 event notifications in this design.
+  #checkov:skip=CKV_AWS_144:Cross-region replication of ALB access logs is out of scope (single-region reference, see README).
   bucket_prefix = "${local.name_prefix}-alb-logs-"
 }
 
@@ -335,6 +339,28 @@ resource "aws_wafv2_web_acl" "main" {
     visibility_config {
       cloudwatch_metrics_enabled = true
       metric_name                = "ip-reputation"
+      sampled_requests_enabled   = true
+    }
+  }
+
+  # Anonymous IP list (VPNs, Tor, hosting providers) in COUNT mode only:
+  # a public citizen service should not block people who use a VPN for
+  # privacy, but the counts are worth watching. Switch to none {} to block.
+  rule {
+    name     = "AWSManagedRulesAnonymousIpList"
+    priority = 55
+    override_action {
+      count {}
+    }
+    statement {
+      managed_rule_group_statement {
+        name        = "AWSManagedRulesAnonymousIpList"
+        vendor_name = "AWS"
+      }
+    }
+    visibility_config {
+      cloudwatch_metrics_enabled = true
+      metric_name                = "anonymous-ip"
       sampled_requests_enabled   = true
     }
   }

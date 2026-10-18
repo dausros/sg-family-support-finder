@@ -15,6 +15,7 @@ resource "aws_security_group" "lifetime" {
 }
 
 resource "aws_vpc_security_group_ingress_rule" "lifetime_from_alb" {
+  #checkov:skip=CKV_AWS_260:False positive. The source is the ALB security group (referenced_security_group_id), not 0.0.0.0/0.
   count                        = var.lifetime.enabled ? 1 : 0
   security_group_id            = aws_security_group.lifetime[0].id
   description                  = "HTTP from the ALB"
@@ -101,6 +102,7 @@ resource "aws_instance" "lifetime" {
 }
 
 resource "aws_lb_target_group" "lifetime" {
+  #checkov:skip=CKV_AWS_378:TLS terminates on the ALB; ALB to IIS is HTTP inside private subnets (README trade-off).
   count       = var.lifetime.enabled ? 1 : 0
   name        = "${substr(local.name_prefix, 0, 20)}-lifetime"
   port        = 80

@@ -53,11 +53,14 @@ locals {
 
   # LifeTime talks to each environment over HTTP(S) (assumption: direct to the
   # front-ends and controller inside the VPC rather than via the public ALB).
-  lifetime_ports = var.lifetime_security_group_id == "" ? [] : [80, 443]
+  # Keyed on a plan-time bool: keying on the SG ID broke the first `plan` in
+  # a fresh account (the ID is unknown until apply), found by terraform test.
+  lifetime_ports = var.lifetime_enabled ? [80, 443] : []
 }
 
 # ALB -> front-ends (TLS terminates on the ALB).
 resource "aws_vpc_security_group_ingress_rule" "fe_http_from_alb" {
+  #checkov:skip=CKV_AWS_260:False positive. The source is the ALB security group (referenced_security_group_id), not 0.0.0.0/0.
   security_group_id            = aws_security_group.fe.id
   description                  = "HTTP from the ALB"
   ip_protocol                  = "tcp"
@@ -189,6 +192,7 @@ resource "aws_cloudwatch_log_group" "this" {
 # CloudWatch agent config, fetched by user data on every platform server.
 # The OutSystems log path is an assumption (default install directory).
 resource "aws_ssm_parameter" "cw_agent" {
+  #checkov:skip=CKV2_AWS_34:Holds the CloudWatch agent config only (log paths, metric names), no secrets.
   name = "/${var.name_prefix}/${var.environment}/cloudwatch-agent-config"
   type = "String"
   tags = local.tags
@@ -255,6 +259,7 @@ locals {
 # ===================== Front-end farm ======================================
 
 resource "aws_lb_target_group" "fe" {
+  #checkov:skip=CKV_AWS_378:TLS terminates on the ALB; ALB to IIS is HTTP inside private subnets (README trade-off).
   name                 = "${local.short_name}-fe"
   port                 = 80
   protocol             = "HTTP"
@@ -440,6 +445,7 @@ resource "random_password" "mq" {
 }
 
 resource "aws_secretsmanager_secret" "mq" {
+  #checkov:skip=CKV2_AWS_57:Rotating the RabbitMQ password needs the same change in the OutSystems Configuration Tool (Cache tab), so it is a runbook step, not a Lambda.
   name        = "${var.name_prefix}/${var.environment}/rabbitmq"
   description = "Amazon MQ RabbitMQ credentials for the ${var.environment} cache invalidation service"
   kms_key_id  = var.kms_key_arn

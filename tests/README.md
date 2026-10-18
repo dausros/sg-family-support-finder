@@ -1,13 +1,15 @@
 # SG Family Support Finder — Playwright tests
 
-> **Latest full serial run (`--workers=1`): 40 passed, 0 failed, 0 skipped
-> (17 Oct 2026, 6 min 14 s)** against the live app at
-> `https://personal-uu490uhn.outsystemscloud.com/SGFamilySupportFinder/`, Chromium.
-> No test code was changed for this run. Per-spec counts are in the root `README.md`.
-> `findsupport.spec.ts` still asserts household-input neutrality, and it changes
-> when the wizard personalisation lands. Previous green run: 30/30 on 16 Oct 2026
-> (before the redesign). HTML report in `playwright-report/` (generated, git-ignored;
-> the GitHub Actions workflow uploads it as an artifact).
+> **Latest full serial run (`--workers=1`): 54 passed, 0 failed, 1 skipped
+> (55 tests, 18 Oct 2026, 21:59–22:09 SGT)** against the live app at
+> `https://personal-uu490uhn.outsystemscloud.com/SGFamilySupportFinder/`, Chromium,
+> run in four batches of 5 minutes or less. Per-spec counts are in the root
+> `README.md`. The skipped test is the logged-in admin flow in `admin.spec.ts`
+> (needs `SGFSF_ADMIN_USER` / `SGFSF_ADMIN_PASS` for a CentreAdmin test user).
+> In that run `persistence-refresh.spec.ts` first failed 2 tests: the app now
+> prints `Updated dd/MM/yyyy HH:mm SGT` and the parser expected the old
+> `dd MMM yyyy, HH:mm`. The parser was updated and the spec re-run: 4/4.
+> Previous runs: 47 passed / 1 skipped (17 Oct 2026); 30/30 (16 Oct 2026).
 
 ## Layout
 
@@ -26,6 +28,13 @@
 | `persistence-refresh.spec.ts` | (9) persistence: repeat visit keeps `Updated …` timestamp + records stable (zero-refetch observable), timestamp parses and is <24h fresh, reload + Retry keep row-count and name-set identical, `[MOCKED]` browser-channel fault + Retry recovery (labelled mock, not server-side-fallback proof) |
 | `ux-responsive.spec.ts` | (8) responsive + a11y: zero horizontal overflow on both screens at 320/375/390/768/1024/1280/1440, 390px touch targets, keyboard reach, labels/`lang`/title/skip-link presence, semantic headings + focusable skip link (former `D-A11Y-01/02` gaps, now hard assertions) |
 > NOTE (Oct 2026): `D-A11Y-01/02` were `test.fail`-tracked while the app lacked heading roles and the layout flag; both now pass as hard assertions. If either regresses, reinstate `test.fail` rather than deleting the test.
+| `admin.spec.ts` | `CentreAdmin` screen redirects to Login when logged out; logged-in add/edit/hide/show (skipped without a CentreAdmin test login) |
+| `dropdowns.spec.ts` | Find Support category questions are labelled dropdowns and feed the ranking |
+| `nearest.spec.ts` | postal code → 3 nearest centres sorted by distance; friendly messages for bad/unknown codes |
+| `share-print.spec.ts` | WhatsApp share text, print view not clipped, no printed URLs |
+| `hotline.spec.ts` | Browse "Help now" is `tel:18002220000`; Find Support money results call the ComCare Hotline 1800 222 0000; 1800 777 0000 appears nowhere (source: https://www.msf.gov.sg/contact-us-feedback) |
+| `timezone.spec.ts` | "Updated dd/MM/yyyy HH:mm SGT" is identical under UTC, Asia/Singapore and America/Los_Angeles device clocks, and under 48 h old |
+| `translations.spec.ts` | Browse in English, Bahasa Melayu, 中文 and தமிழ்: filter labels, dropdown options, the SGT stamp (no stray comma in 中文), and each Call link's accessible name contains its visible number |
 | `ux-baseline/` | viewport screenshots (320→1920) for both screens + measured `overflowX: 0` at every width |
 | `helpers.ts` | shared base-URL guard + known-record constants |
 | `playwright.config.ts` | config; base URL from env only |
@@ -46,7 +55,8 @@
 |---|---|---|
 | `APP_BASE_URL` | yes | Published app URL: the app root or a screen, e.g. `https://personal-uu490uhn.outsystemscloud.com/SGFamilySupportFinder/` |
 
-Do not commit secrets. No credentials are needed (public screen, no auth).
+Do not commit secrets. No credentials are needed for the public screens.
+Optional: `SGFSF_ADMIN_USER` / `SGFSF_ADMIN_PASS` (a CentreAdmin test user) enable the logged-in admin test.
 Do not hardcode a live URL — pass it via `APP_BASE_URL` at runtime.
 
 ## Run

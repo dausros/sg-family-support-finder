@@ -289,7 +289,7 @@ Published CS → UI, 2026-10-17, around 12:15 SGT. Validation stayed at 0 errors
   | Code | Helpline |
   |---|---|
   | SMTA, LTA, IA | ComCare Hotline 1800 222 0000 |
-  | SSOAPP | Social Service Office line 1800 777 0000 |
+  | SSOAPP | Social Service Office line 1800 777 0000 (corrected on 18 Oct 2026 to the ComCare Hotline 1800 222 0000, see Round 8) |
   | HCG, CTG | AIC Hotline 1800 650 6060 |
   | FAM | Divorce Support and Family Counselling 1800 111 2222 |
   | BABYBONUS | Baby Bonus hotline 1800 111 2222 |
@@ -579,3 +579,72 @@ Screenshots (viewed): `ux-home-1280.png`, `ux-centres-p2-1280.png`, `ux-centres-
 - README "What the app does" rewritten for this round: dropdown filters, OSUI Pagination, 7-question wizard with Static Entity dropdowns, nearest centres, share/print, CentreAdmin screen and the role, accessibility. The testing table now matches the 17 Oct live run (47 passed, 0 failed, 1 skipped).
 - New `docs/ASSESSMENT_CHECKLIST.md`: every ask in the brief (last page of `docs/Low Code Engineer JD.pdf`) mapped to evidence, with ✅/⚠️.
 - IaC re-check on this branch (Terraform 1.9.8): `fmt -check` clean; `init -backend=false` + `validate` pass for `infra/` and `infra/bootstrap/`; tflint 0 issues; checkov 314 passed / 24 failed (all explained in `infra/README.md`). No plan or apply.
+
+
+## Round 8: fix round for a 10/10 (18 Oct 2026, 20:44–22:10 SGT)
+
+Owner steer (18 Oct): "fix it and make it a 10/10", then "check that everything is genuine and sound". Every change went through the Service Studio MCP (`applyModelApiCode` → `omlMerge` → `omlPublish`), one small change at a time. Nothing was deleted, no `omlReset`.
+
+### Validation (TrueChange, read again 18 Oct 2026 21:58 SGT)
+| Module | Errors | Warnings |
+|---|---|---|
+| SGFamilySupport_LIB | 0 | 0 |
+| SGFamilySupport_CS | 0 | 0 |
+| SGFamilySupportFinder (UI) | 0 | 4 |
+
+The 4 UI warnings, all by design:
+- **Security Warning ×3** on `FindCentres/GetDirectory` → `FetchCentres`, `FetchSSO`, `FetchSFP`: public, read-only directory actions on an anonymous screen. They take no input and return only public data.gov.sg directory rows. This is also the "Security Warnings" line every UI publish prints. None comes from this round's changes; all three were there before it.
+- **Coherence Suggestion ×1** on `FindCentres/On Ready` (`LoadDirectory` reads the Data Action). `LoadDirectory` is also the Retry handler, and the list logic already runs in `OnDirectoryFetched` (OnAfterFetch). Left as is.
+
+### Server-side authorisation (checked, nothing to add)
+`SGFamilySupport_CS.Centre_CreateOrUpdate` and `Centre_SetActive` (the only public actions that change data) start with `If CheckCentreAdminRole()`. The False branch raises the `CentreAdmin` role exception ("Only centre admins can change centres."). Read back from the model on 18 Oct 21:58 SGT (`getServerAction`). The other public CS actions only read public data.
+
+### CS changes (`SGFamilySupport_CS`)
+| # | Element | Before → after | Why |
+|---|---|---|---|
+| R8-CS-1 | Static entity `SchemeCatalogue`, record `SSOAPP` (apply at a Social Service Office) | phone **1800 777 0000** → **1800 222 0000**; how-to-apply text "SSO hotline: 1800 222 0000." → **"ComCare Hotline: 1800 222 0000."** | MSF lists 1800-222-0000 as the ComCare Hotline "to enquire about financial assistance or social support" (https://www.msf.gov.sg/contact-us-feedback, read 18 Oct 2026). |
+| R8-CS-2 | Timer `RefreshDatasetCache` | `Schedule` null (never ran on its own) → **daily 19:00 server time (UTC) = 03:00 SGT**, `CronSchedule "0 19 * * *"`, with a description | The daily refresh promised in the README was not scheduled. 03:00 SGT is the quietest hour. |
+| R8-CS-3 | New entity `AuditLog` (not public) | — → Id, ActionName (Create / Update / Hide / Show / SaveFailed), EntityName, RecordId, Details, UserId, CreatedOn | Append-only record of every admin change to centres (who, what, when). |
+| R8-CS-4 | Server action `Centre_CreateOrUpdate` | no audit, no DB handler → writes `AuditLog` after each save; new `DatabaseException` handler rolls back, writes a `SaveFailed` audit row and returns a plain-words `ErrorMessage` | Traceability, and no raw database errors reaching the admin screen. |
+| R8-CS-5 | Server action `Centre_SetActive` | no audit → writes a Hide / Show `AuditLog` row | Same. |
+
+### UI changes (`SGFamilySupportFinder`)
+| # | Element | Before → after | Why |
+|---|---|---|---|
+| R8-UI-1 | Module references | stale → refreshed after each CS publish (`omlRefreshReferences`) | Avoid "Outdated Consumer". |
+| R8-UI-2 | Unused reference `GetFamilyServiceCentres2` | present → removed | Dead reference. |
+| R8-UI-3 | Theme | name `Test` → **`SGFamilySupportTheme`** | A real name for reviewers. |
+| R8-UI-4 | Script `SGFamilySupportI18n` (the translation table) | missing labels → Service type, Sort by, All services, Name A to Z / Z to A, the Call link names and the result-card sentences now translate in Bahasa Melayu, 中文 and தமிழ்; a sentence-by-sentence fallback for longer texts; 38 more entries | Parts of the public screens stayed in English after a language change. |
+| R8-UI-5 | Call links | `aria-label` did not contain the visible number → "Call 6453 5349" (localised: Hubungi / 拨打 / அழைக்கவும்) | axe `label-content-name-mismatch`. |
+| R8-UI-6 | "Updated …" stamp on Browse, and the print date | the visitor's device time, e.g. "Updated 16 Oct 2026, 19:05" → **Singapore time**, "Updated 18/10/2026 21:38 SGT" (中文: "更新于 2026 年 10 月 18 日 21:38（新加坡时间）", no stray comma) | A visitor abroad saw a time that was not Singapore's. |
+| R8-UI-7 | Find Support "Change answers" link | `aria-label` "Change your answers" → "Change answers" | axe `label-content-name-mismatch` (serious). |
+| R8-UI-8 | Theme CSS, centre details panel | → label/value columns, title no longer squeezed on phones, 44 px Close / Call / Email targets | Readability at 390 px. |
+| R8-UI-9 | 中文 logo badge | "新加坡" squeezed into the square → stays "SG" | Layout. |
+
+### Publishes (all `status: success`)
+| Time (SGT) | Module |
+|---|---|
+| 18 Oct 20:45 | CS (hotline) |
+| 18 Oct 20:49 | CS (timer, AuditLog, audit + handler) |
+| 18 Oct 21:04 | UI (references, theme, i18n, Call names, SGT) |
+| 18 Oct 21:31 | UI (i18n fallback, Change answers) |
+| 18 Oct 21:38 | CS (ComCare Hotline wording), then UI |
+| 18 Oct 21:44 | UI (panel CSS, SG badge) |
+
+### Live checks after the last publish (18 Oct 21:45–21:47 SGT, Chromium, 390 and 1440 px, device timezone America/Los_Angeles)
+- Browse "Help now" link: `href="tel:18002220000"`, text "Help now: 1800 222 0000".
+- Find Support, money need: "📞 Call ComCare 1800 222 0000"; no "1800 777 0000" anywhere (English and 中文).
+- "Showing 1–10 of 94 found · Updated 18/10/2026 21:38 SGT", the same under UTC, Asia/Singapore and America/Los_Angeles device clocks.
+- Filters in all four languages: Service type / Jenis perkhidmatan / 服务类型 / சேவை வகை; Sort by / Susun ikut / 排序方式 / வரிசைப்படுத்து; options "All services", "Name A to Z", "Name Z to A" and their translations.
+- Call links: "Call 6453 5349" / "Hubungi 6453 5349" / "拨打 6453 5349" / "அழைக்கவும் 6453 5349".
+- Get directions opens `https://www.google.com/maps/dir/?api=1&destination=230%20Ang%20Mo%20Kio%20Ave%203,%20Singapore%20560230`.
+- axe (WCAG 2.1 A/AA + best practice): 0 violations on Browse, the details panel and the English results.
+
+### Tests changed in this round
+- New `hotline.spec.ts` (2), `timezone.spec.ts` (1), `translations.spec.ts` (4).
+- `persistence-refresh.spec.ts`: the timestamp parser now reads the new `Updated dd/MM/yyyy HH:mm SGT` format (it failed 2 tests on the old `dd MMM yyyy, HH:mm` format before this fix).
+- Full live run: see `README.md` → Testing.
+
+### Not verified
+- The 03:00 SGT timer has not been seen firing yet (first run due 19 Oct 2026 03:00 SGT). The schedule assumes the server clock is UTC.
+- The logged-in admin flow (and so an `AuditLog` row being written) has not been run live: there is no CentreAdmin test login yet.

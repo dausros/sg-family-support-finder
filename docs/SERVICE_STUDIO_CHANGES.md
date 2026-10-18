@@ -648,3 +648,48 @@ The 4 UI warnings, all by design:
 ### Not verified
 - The 03:00 SGT timer has not been seen firing yet (first run due 19 Oct 2026 03:00 SGT). The schedule assumes the server clock is UTC.
 - The logged-in admin flow (and so an `AuditLog` row being written) has not been run live: there is no CentreAdmin test login yet.
+
+## Round 9: actions tidy and Listen language fix (18 Oct 2026, 23:05–23:40 SGT)
+
+Owner asks (WhatsApp, 18 Oct): "For finder with the client actions and server actions can you ensure they are neat and not converged and all over the place?" Then: the Listen button reads Malay text with an English voice.
+
+Applied through the Service Studio MCP (`applyModelApiCode` → `omlMerge`). The model was re-read after each merge. `getValidationMessages` showed 0 errors before each publish. The full before/after inventory is in `docs/ACTIONS_AUDIT.md`.
+
+### Before
+- CS: 17 server actions, all loose at the root. Only 3 used `Entity_Verb` (`Centre_*`). `GetFamilyServiceCentres` and `GetCachedFamilyServiceCentres` (and the same pairs for offices and programme sites) read as duplicates. The three raw fetchers were Public although nothing outside CS calls them, and the UI still listed two of them as unused dependencies.
+- UI: one module client action (`ApplyDirectoryFilters`) at the root. 46 screen/block actions, data actions and aggregates had no Description.
+- Layer split was already right: no client actions in CS; UI screen actions only hold screen state; UI data actions only call public CS actions; the role check is on the server.
+- No action had 0 references (`GeoDistanceKm` is used in an expression in `GetNearestCentres`), so nothing was moved to an "Unused" folder.
+
+### Changes (module, element, before → after, why)
+| # | Module | Element | Before → after | Why |
+|---|---|---|---|---|
+| T1 | UI | `ListenButton` › `ToggleSpeech` › JS `Speak` | Took the language from `GetCurrentLocale()` and picked an **English voice** when the device had none for the language (it showed "Reading in English"). Text passed in as a parameter (wizard steps 1–2) was read in English. → Takes the language the page is showing (`__sgsfI18n.lang`); translates the `Text` parameter through the page's translation table; sets `utterance.lang` to `ms-MY` / `zh-CN` / `ta-IN` / `en-SG`; picks a voice with a matching language (`ms-MY`→`ms-SG`→`ms`; `zh-CN`→`zh-SG`→`cmn`→`zh-TW`→`zh`; `ta-IN`→`ta-SG`→`ta-LK`→`ta`), waiting up to 1.5 s for `voiceschanged`. If there is no matching voice, it shows a translated note and does **not** speak. "Phone" is also translated. | Owner's report: Malay text, English voice. |
+| T2 | UI | `ListenButton` › `SpeechEnded` | No inputs → new optional input `Note`, assigned to `VoiceNote`. | Lets the async voice check show the no-voice note. |
+| T3 | UI | Script `SGFamilySupportI18n` | → exposes `__sgsfI18n.tr(text)` (one line, uses the existing `tr`). | Needed by T1 to translate the `Text` parameter. |
+| T4 | UI | Dependencies on CS | `GetSocialServiceOffices`, `GetStrengtheningFamiliesServices` listed → removed (0 uses in any UI screen, block or action, checked by a model query before deleting). | Unused dependencies; allowed the fetchers to become private. |
+| T5 | CS | Server-action folders | none → `Centre`, `Directory`, `Scheme`, `Integration_DataGovSg`, `Cache`, `Geo`, each with a description; all 17 actions moved in. | Grouping. |
+| T6 | CS | Internal renames (key-based references; timers and the `Geo_DistanceKm(...)` expression updated by the model) | `GetFamilyServiceCentres` → `DataGovSg_FetchFamilyServiceCentres`; `GetSocialServiceOffices` → `DataGovSg_FetchSocialServiceOffices`; `GetStrengtheningFamiliesServices` → `DataGovSg_FetchProgrammeSites` (all three Public Yes → **No**); `SyncDatasetCaches` → `Cache_SyncAll`; `SyncCentresCache` → `Cache_SyncCentres`; `SyncOfficesCache` → `Cache_SyncOffices`; `SyncProgrammeCache` → `Cache_SyncProgrammeSites`; `RemoveOverriddenDatasetRows` → `Cache_RemoveOverriddenRows`; `GeoDistanceKm` → `Geo_DistanceKm` | One `Area_Verb` naming scheme; no near-duplicate names; only UI-facing actions public. |
+| T7 | CS | Public renames | `GetCachedFamilyServiceCentres` → `Directory_GetFamilyServiceCentres`; `GetCachedSocialServiceOffices` → `Directory_GetSocialServiceOffices`; `GetCachedStrengtheningFamiliesServices` → `Directory_GetProgrammeSites`; `GetNearestCentres` → `Directory_GetNearestCentres`; `GetSchemeRecommendations` → `Scheme_GetRecommendations` | Same scheme. The UI was refreshed (`omlRefreshReferences`) and republished straight after the CS publish. |
+| T8 | UI | Client action | `ApplyDirectoryFilters` (root) → `Directory/Directory_ApplyFilters` (new client-action folder with a description) | Same scheme. |
+| T9 | UI | Descriptions | 46 screen/block actions, data actions and aggregates with no Description → one plain-words line each (FindCentres, FindSupport, CentreAdmin, AccessBar, CentreDetailsPanel, ListenButton, NearestCentres, WizardStep1Need/2Household/3Results). `NearestCentres` block description now names `Directory_GetNearestCentres`. OutSystems template elements (Login, layouts, Menu, UserInfo) were left as shipped. | Assessors open Service Studio. |
+
+No logic was moved between CS and UI. No entity, data or module was deleted.
+
+### Validation and publishes (UTC)
+- Before: LIB 0/0; CS 0 errors / 0 warnings; UI 0 errors / 4 warnings (3 × "Security Warning": the public directory calls server actions from an Anonymous screen, which is by design; 1 × "Coherence Suggestion" on `FindCentres` On Ready).
+- After each merge and before each publish: identical. LIB 0/0, CS 0/0, UI 0 errors / the same 4 warnings.
+- Publishes: UI (Listen fix) at 15:19:44Z (success); UI (Listen fix 2) at 15:23:58Z (success); UI (unused CS dependencies removed) at 15:29:45Z (success); CS (folders + renames + 3 fetchers private) at 15:32:22Z (success); UI (references refreshed to renamed CS actions) at 15:33:04Z (success); UI (client action folder/rename + descriptions) at 15:36:18Z (success); UI (description wording) at 15:37:44Z (success). The UI ran "Outdated Consumer" for about 42 s between the CS publish (15:32:22Z) and the UI publish (15:33:04Z).
+
+### Live checks after the last publish (headless Chromium)
+- Listen, with a stubbed voice list (en-GB, ms-MY, zh-CN, ta-IN): ms → `lang ms-MY`, voice Amira, text "Apa yang anda perlukan bantuan? Pilih satu. …"; zh → `zh-CN`, Tingting, "您需要哪方面的帮助？…"; ta → `ta-IN`, Vani, "உங்களுக்கு எதில் உதவி வேண்டும்? …"; en → `en-GB`, Daniel, English text.
+- English voices only: ms/zh/ta show "Tiada suara Bahasa Melayu pada peranti ini. Tambah satu dalam tetapan teks-ke-pertuturan telefon anda." / "此设备没有中文语音。请在手机的文字转语音设置中添加。" / "இந்தச் சாதனத்தில் தமிழ்க் குரல் இல்லை. …", and nothing is spoken.
+- Real headless Chromium (0 voices): the same notes after 1.5 s; English still speaks with `lang en-SG`.
+- Renamed CS actions working live: Browse shows "10 of 94 found · Updated 18/10/2026 23:32 SGT", and a search for "lakeside" finds Lakeside Family Centre (`Directory_Get*` ×3). Find Support shows 7 scheme cards (`Scheme_GetRecommendations`). Nearest for 560211: Allkin FSC @ Ang Mo Kio 230 0.4 km, Allkin FSC @ Yio Chu Kang 643 0.9 km, REACH @ Sin Ming 1.1 km (`Directory_GetNearestCentres`). Help-now link `tel:18002220000`. Language switch gives `html lang` ms / zh-CN / ta.
+- New spec `tests/listen.spec.ts` (5 tests) pins the Listen behaviour.
+- Full live Playwright run after this round (23:44–23:53 SGT, `--workers=1`): **59 passed, 0 failed, 1 skipped** (the skipped one is the logged-in admin flow, which needs a CentreAdmin test login).
+
+### Not verified
+- Real speech on iPhone/Android: whether a phone has a Malay, Chinese or Tamil voice installed is up to the device; not tested on a real phone.
+- Known duplication left on purpose: `Cache_Sync…` call the DataGovSG REST methods directly, while `Directory_Get…` refresh through `DataGovSg_Fetch…`. Merging the two refresh paths would change live behaviour, so it is a follow-up and was not done blind.
+- The screen actions on `FindCentres` (`OnSearch`, `GoToPage`, `SetServiceType`, `SetSortOrder`, `ClearFilters`) each copy the six outputs of `Directory_ApplyFilters`. This is readable, but it could be one shared "RefreshList" screen action. It was left as is.

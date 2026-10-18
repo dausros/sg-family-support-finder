@@ -8,7 +8,7 @@ The app is a three-module OutSystems 11 Reactive Web application, built on three
 | Module | Type | Owns |
 |---|---|---|
 | `SGFamilySupport_LIB` | Library | Shared Structures / public contracts (`FamilyServiceCentre`, `SupportLocation`). No logic, REST or UI. |
-| `SGFamilySupport_CS` | Service | `DataGovSG` REST integration and GeoJSON mapping; **persistent cache Entities** `CachedCentre`, `CachedOffice`, `CachedProgrammeSite` and `SyncStatus`; static `SchemeCatalogue`; sync actions (`SyncDatasetCaches` and per-dataset syncs); cache-first public getters (`GetCached*`, with `LastSynced` / `FromCache` / `StaleWarning`); `GetSchemeRecommendations`. |
+| `SGFamilySupport_CS` | Service | `DataGovSG` REST integration and GeoJSON mapping; **persistent cache Entities** `CachedCentre`, `CachedOffice`, `CachedProgrammeSite` and `SyncStatus`; static `SchemeCatalogue`; sync actions (`Cache_SyncAll` and per-dataset syncs); cache-first public getters (`Directory_Get*`, with `LastSynced` / `FromCache` / `StaleWarning`); `Scheme_GetRecommendations`. |
 | `SGFamilySupportFinder` | Reactive Web (UI) | `FindCentres` (Browse Support Services directory: search, SFP/FSC/SSO filter, sort, 10-per-page pagination), `FindSupport` (3-step wizard), `CentreDetailsPanel` block (keyless Leaflet/OSM map). Calls only public CS actions. |
 
 Dependency direction: LIB ← CS ← UI (UI may also reference LIB). No upward or circular references. Publish order: LIB → CS → UI.

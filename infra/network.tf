@@ -7,6 +7,13 @@ resource "aws_vpc" "main" {
   enable_dns_hostnames = true
 
   tags = { Name = "${local.name_prefix}-vpc" }
+
+  lifecycle {
+    precondition {
+      condition     = alltrue([for az in var.availability_zones : startswith(az, var.region)])
+      error_message = "Every entry in availability_zones must be a zone of var.region."
+    }
+  }
 }
 
 resource "aws_internet_gateway" "main" {

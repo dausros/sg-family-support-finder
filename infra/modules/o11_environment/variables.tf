@@ -68,8 +68,14 @@ variable "health_check_path" {
   type        = string
 }
 
+variable "lifetime_enabled" {
+  description = "Whether a LifeTime server exists. A plain bool (known at plan time) so the LifeTime rules' for_each never depends on an ID that is only known after apply."
+  type        = bool
+  default     = false
+}
+
 variable "lifetime_security_group_id" {
-  description = "LifeTime server SG allowed to reach this environment's servers (empty string = no LifeTime)."
+  description = "LifeTime server SG allowed to reach this environment's servers. Used only when lifetime_enabled = true."
   type        = string
   default     = ""
 }

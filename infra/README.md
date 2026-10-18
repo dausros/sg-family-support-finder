@@ -88,7 +88,9 @@ flowchart TB
 | `backup.tf` | AWS Backup vault, daily (35 d) and monthly (cold after 30 d, kept 365 d) rules, tag-based selection, failed-job alarm |
 | `outputs.tf` | What an administrator needs to install the platform: controller IPs, MQ endpoints, DB endpoints, secret ARNs, hosts |
 | `env/*.tfvars.example` | `common`, `dev`, `test`, `prod` examples |
-| `bootstrap/` | One-off S3 state bucket + DynamoDB lock table |
+| `bootstrap/` | One-off S3 state bucket + DynamoDB lock table (old state versions expire after 90 days) |
+| `tests/*.tftest.hcl` | Offline `terraform test` suites with mocked providers (see "Validation and tests") |
+| `.tflint.hcl` | tflint config: terraform recommended preset + AWS ruleset 0.38.0 |
 
 ## Usage
 
@@ -120,34 +122,112 @@ instance. The DB tiers and LifeTime wiring follow the enabled set.
 With Terraform 1.10 or later you can use `use_lockfile = true` and skip the
 DynamoDB table. The table is kept for older CLIs.
 
-## Validation (17 Oct 2026, Terraform 1.9.8, AWS provider 5.x)
+## Validation and tests (18 Oct 2026, run locally, not on GitHub Actions)
+
+Every check below was run on a Linux box with `scripts/check-all.sh` from the
+repo root. The full output is committed in
+[`docs/test-evidence/local-run-2026-10-18.txt`](../docs/test-evidence/local-run-2026-10-18.txt).
+Tool versions: Terraform 1.9.8, AWS provider 5.100.0, tflint 0.64.0 (terraform
+recommended preset + AWS ruleset 0.38.0), checkov 3.3.29. `scripts/install-tools.sh`
+installs the same versions and checks each download against the vendor's
+SHA-256 checksum file.
 
 | Check | Result |
 |---|---|
 | `terraform fmt -check -recursive` | pass |
-| `terraform init -backend=false` + `terraform validate` (root) | `Success! The configuration is valid.` |
-| `terraform validate` (`bootstrap/`) | `Success! The configuration is valid.` |
-| `tflint --recursive` (0.64, terraform recommended preset + aws ruleset 0.38) | 0 issues |
-| `checkov -d . --framework terraform` | 314 passed, 24 failed (findings below) |
+| `terraform init -backend=false` + `terraform validate` (root and `bootstrap/`) | `Success! The configuration is valid.` (both) |
+| `tflint --recursive` | 0 issues |
+| `checkov -d infra --framework terraform` | 323 passed, 0 failed, 15 skipped (was 314 / 24 / 0 on 17 Oct) |
+| `terraform test` (offline, mock providers) | 10 passed, 0 failed |
+| Real `terraform plan` / `apply` against AWS | **not run**: no AWS account. With fake keys the provider stops at `STS GetCallerIdentity` (403 `InvalidClientTokenId`) |
+| LocalStack | **not run**: RDS and Amazon MQ are not in LocalStack's free tier ([LocalStack plans](https://docs.localstack.cloud/aws/licensing/), read 18 Oct 2026) |
 
-`terraform plan` was not run because there are no AWS credentials here.
-`validate` checks syntax, types and references only, not AWS-side
-constraints such as instance-class availability or engine versions.
+`validate` checks syntax, types and references. `terraform test` goes one
+step further: it builds a full plan of the root module and of the
+environment module against mocked AWS and random providers, and asserts on
+the planned values. Neither proves that AWS will accept the plan (quotas,
+engine versions, instance-class availability in the region). Only a real
+`terraform plan` in an AWS account can show that.
 
-Remaining checkov findings, each kept on purpose:
+### What `terraform test` asserts
 
-| Check | Why it stays |
+`infra/tests/platform.tftest.hcl` (root module, 8 runs):
+
+- 2 public, 2 private-app and 2 private-db subnets, each tier across two AZs;
+  one NAT gateway per AZ by default; VPC flow logs capture ALL traffic.
+- RDS: a shared non-prod and a dedicated prod instance; prod is Multi-AZ; both
+  SQL Server, encrypted, not public, at least 7 days of PITR, deletion
+  protection, a final snapshot, the master password held by RDS in Secrets
+  Manager, and tagged `Backup=true`.
+- SQL Server 1433 is only reachable from platform security groups, never from
+  a CIDR. No RDP rule exists unless admin CIDRs are given. The ALB accepts only
+  80 and 443.
+- HTTPS listener on 443 with a TLS 1.3/1.2 policy; port 80 answers with a 301
+  to HTTPS; the ALB drops invalid headers, has deletion protection and access
+  logs; the WAF has all seven expected rules; the log bucket blocks public access.
+- KMS key rotation on; log groups keep at least 365 days; CPU, storage and
+  memory alarms per RDS instance; ALB 5xx, backup-failure and LifeTime alarms;
+  AWS Backup keeps at least 35 days and selects `Backup=true`.
+- Dev, Test, Prod and a dedicated LifeTime host; LifeTime enforces IMDSv2 and
+  an encrypted root volume.
+- With one NAT gateway and prod disabled, the plan still works and creates no
+  prod database or host. Restricted RDP opens only to the given CIDR.
+- Rejected inputs: RDP from `0.0.0.0/0`, PITR under 7 days, a log retention
+  CloudWatch does not accept, the same AZ twice, and AZs outside the region.
+
+`infra/tests/environment.tftest.hcl` (environment module, 2 runs):
+
+- Prod: at least 2 front-ends across both subnets, ELB health checks, IMDSv2,
+  encrypted volumes, no sticky sessions (OutSystems advises against them on
+  farms); the Deployment Controller has IMDSv2, an encrypted volume and
+  `Backup=true`.
+- The OutSystems port matrix exactly: front-end to controller 12000/12100;
+  controller to front-end 80, 12001/12101, 12002/12102; RabbitMQ only on 5671.
+  Every platform port is opened to a security group, never to a CIDR.
+- Amazon MQ is private RabbitMQ, a Multi-AZ cluster in prod, encrypted with the
+  platform key; all 7 environment alarms notify SNS; the controller alarm also
+  auto-recovers the instance.
+- Dev: a single-instance broker takes one subnet; restricted RDP opens only to
+  the admin CIDR; no LifeTime rules when LifeTime is off.
+
+The tests were checked against deliberate breakage: with prod set to single-AZ
+and front-end stickiness switched on, the run reported `8 passed, 2 failed`,
+naming exactly those two assertions. Both changes were then reverted.
+
+**A real defect the tests found.** The LifeTime security-group rules in the
+environment module used `for_each` over a list chosen by whether the LifeTime
+security-group ID was empty. In a fresh account that ID is unknown until
+apply, so the first `terraform plan` would have stopped with "Invalid for_each
+argument". `validate` cannot see this. The module now takes a plain
+`lifetime_enabled` flag, and the plan builds.
+
+### Changes made on 18 Oct after the scan
+
+Fixed (9 checkov findings):
+
+| Check | Change |
 |---|---|
-| CKV_AWS_157 RDS Multi-AZ | Only the non-prod instance is single-AZ, as a cost trade-off. Prod is Multi-AZ. |
-| CKV_AWS_378 HTTP target groups | TLS terminates at the ALB and ALB→IIS runs on port 80 inside private subnets. Re-encrypting means a cert on every IIS host; see the trade-offs below. |
-| CKV_AWS_260 port 80 from 0.0.0.0/0 | False positive. Those rules reference the ALB security group, not a CIDR. |
-| CKV_AWS_338 log retention < 1 year | Retention is a variable (90 d default). Set `log_retention_days = 365` where policy requires it. |
-| CKV2_AWS_57 secret rotation | Rotating the RabbitMQ password needs a matching change in the OutSystems cache invalidation config, so it is a runbook step. RDS master secrets are rotated by RDS. |
-| CKV2_AWS_34 SSM parameter not encrypted | It holds the CloudWatch agent config, which contains no secrets. |
-| CKV_AWS_145 / CKV_AWS_18 / CKV2_AWS_62 / CKV_AWS_144 on S3 | ALB log delivery requires SSE-S3. Access logging of the log bucket, event notifications and cross-region replication are left out of a reference design. |
-| CKV_AWS_119 DynamoDB CMK, CKV2_AWS_61 state-bucket lifecycle | Bootstrap only: AWS-owned encryption is enough for a lock table, and state versions are kept deliberately. |
-| CKV2_AWS_76 Log4j AMR | KnownBadInputs is attached. checkov does not resolve the separate association resource. |
-| CKV_AWS_394 AZ pinning | Only the first two AZs are used, through `slice`. |
+| CKV_AWS_338 x6 (log retention < 1 year) | `log_retention_days` and `flow_logs_retention_days` now default to 365 and only accept values CloudWatch Logs allows. |
+| CKV2_AWS_76 (Log4j managed rules) | Added `AWSManagedRulesAnonymousIpList` in COUNT mode. checkov requires it next to KnownBadInputs. COUNT, not block, because a public service should not block people who use a VPN. The 17 Oct note blamed checkov for not resolving the association; that was wrong. |
+| CKV_AWS_394 (AZ pinning) | AZs are now a variable (`ap-southeast-1a`, `ap-southeast-1b`) with checks: two distinct zones, both inside `region`. Before, the first two names from a data source were used. |
+| CKV2_AWS_61 (state bucket lifecycle) | `bootstrap/`: old state versions expire after 90 days; failed uploads are cleaned up after 7. |
+
+Other guard rails added: `allowed_rdp_cidr_blocks` rejects `0.0.0.0/0` and
+`::/0`; `db_backup_retention_days` must be 7 to 35.
+
+Accepted (15 findings, each skipped inline with `#checkov:skip=<id>:<reason>`
+next to the resource, so the reason is in the code):
+
+| Check | Resource | Why it stays |
+|---|---|---|
+| CKV_AWS_157 RDS Multi-AZ | `aws_db_instance.platform` | Only the shared non-prod instance is single-AZ (cost). Prod is Multi-AZ, and a test asserts it. |
+| CKV_AWS_378 HTTP target group (x2) | front-end and LifeTime target groups | TLS ends at the ALB; ALB to IIS is HTTP on port 80 inside private subnets. Re-encrypting needs a certificate on every IIS host. |
+| CKV_AWS_260 port 80 from 0.0.0.0/0 (x2) | `fe_http_from_alb`, `lifetime_from_alb` | False positive. The source is the ALB security group, not a CIDR. |
+| CKV2_AWS_34 SSM parameter not encrypted | CloudWatch agent config | Holds log paths and metric names only, no secrets. |
+| CKV2_AWS_57 secret rotation | RabbitMQ secret | Rotating it needs the same change in the OutSystems Configuration Tool (Cache tab), so it is a runbook step. RDS rotates its own master secret. |
+| CKV_AWS_145 S3 KMS | ALB log bucket | ALB access-log delivery supports only SSE-S3 ([AWS docs](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/enable-access-logging.html): "The only server-side encryption option that's supported is Amazon S3-managed keys (SSE-S3)"). |
+| CKV_AWS_18 / CKV2_AWS_62 / CKV_AWS_144 (x2 each) | ALB log bucket, state bucket | Access logging of log buckets, event notifications and cross-region replication are left out of a single-region reference. |
+| CKV_AWS_119 DynamoDB CMK | lock table | Holds lock IDs only; AWS-owned encryption at rest is enough. |
 
 ## Design decisions
 

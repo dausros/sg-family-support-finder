@@ -1,12 +1,8 @@
-data "aws_availability_zones" "available" {
-  state = "available"
-}
-
 data "aws_caller_identity" "current" {}
 
 locals {
   name_prefix = var.project
-  azs         = slice(data.aws_availability_zones.available.names, 0, 2)
+  azs         = var.availability_zones
 
   # Every enabled OutSystems environment (Dev / Test / Prod). LifeTime is
   # handled separately because it must run in its own dedicated environment.

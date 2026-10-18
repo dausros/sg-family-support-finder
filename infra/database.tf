@@ -64,6 +64,7 @@ resource "aws_vpc_security_group_ingress_rule" "db" {
 }
 
 resource "aws_db_instance" "platform" {
+  #checkov:skip=CKV_AWS_157:Only the shared non-prod instance is single-AZ (cost trade-off). Prod is Multi-AZ, asserted by tests/platform.tftest.hcl.
   for_each = local.db_tiers
 
   identifier     = "${local.name_prefix}-${each.key}-mssql"

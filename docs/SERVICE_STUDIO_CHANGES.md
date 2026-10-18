@@ -726,3 +726,38 @@ Goal: a login an assessor can use on the staff screen `/CentreAdmin`, with the `
 **Notes:**
 - The password can be changed at any time in the Users app (`/Users` → `reviewer` → change password). Reviewer credentials are given in the submission email, not here.
 - The 16:28:52 UTC CS version in the environment's version history still has the initial password as the site property default. Changing the reviewer password in the Users app makes that value useless.
+
+
+## Round 11: staff sign-in, theme stylesheet fix, headings, icons and page tags (18 Oct 2026, 22:15–23:23 UTC)
+
+Goal: the module changes listed in `docs/UX_REVIEW.md` ("Next Service Studio changes").
+
+**Module:** `SGFamilySupportFinder` (UI) only. CS and LIB were not changed. Nothing was deleted.
+
+**Cause of D-CSS-01** (read on 18 Oct 2026 at 22:18 UTC from the live module manifest, `moduleservices/moduleinfo`, version 259): the theme was renamed from `Test` to `SGFamilySupportTheme` in round 9. After the rename, every screen asked for `css/SGFamilySupportFinder.SGFamilySupportTheme.extra.css`, but the manifest still listed the theme's generated grid stylesheet under the old name, `css/SGFamilySupportFinder.Test.extra.css`, so the new name returned 404. The platform rebuilds this file only when the theme's grid settings change, and a rename alone does not change them. The only line in the file that differs from `OutSystemsUI.OutSystemsUI.extra.css`, which did load, is `.ThemeGrid_Container { max-width: 1280px; }`, the theme's own maximum width.
+
+**Changes (model API, `applyModelApiCode` → `omlMerge` → 1-Click Publish):**
+
+| Element | Change | Why |
+|---|---|---|
+| Screen `Common/Login` | Screen title "Staff sign-in - SG Family Support Finder". The heading (h1) reads "Staff sign-in"; it was `GetEntryEspaceName()`, which showed "SGFamilySupportFinder". The template logo image is hidden (`display: none`) and the text "SG Family Support Finder" is shown in its place (class `sgsf-login-brand`). The "Forgot password?" link, which went to `#`, now reads "Back to the public site" and goes to `FindCentres`. The button reads "Sign in" instead of "Login". The checkbox label "Remember me the password" now reads "Remember me on this device". | The sign-in page was the unstyled template (review item 1). Passwords are reset by an administrator in the Users app, so there is no self-service reset link. The `ForgotPassword` screen action is no longer used and was kept (warning "Unused Action"). |
+| Screen `MainFlow/FindCentres` | The only heading on the page, "Not sure where to start?" (level 1), now reads "Find family support services". The search label "Or browse every centre: search by name, street or postal code" now reads "Browse all support places" and is a level 2 heading (`role="heading"`, `aria-level="2"`). Each result name has `role="heading"` and `aria-level="3"`. | Browse now has one h1 that names the page, and screen-reader users can jump between results by heading (review item 4). The search box keeps its own label and placeholder. |
+| Blocks `AccessBar`, `WizardStep1Need` | Six emoji text widgets are now empty: globe, telephone, money bag, family, child and handshake. `.sgsf-need-icon` is hidden in the theme. | Emoji were used as icons (review item 3). The visible words carry the meaning. |
+| Blocks `WizardStep3Results`, `NearestCentres`, `ListenButton` | The telephone emoji was removed from five Call expressions; the ones that showed only a number now read "Call 6xxx xxxx". "Directions" with a map emoji now reads "Get Directions", a string that was already translated. The Listen button changed from `If(IsSpeaking, "■ Stop", "<speaker emoji> " + Label)` to `If(IsSpeaking, "Stop", Label)`. | Same as above. Screen readers read out the speaker emoji in "Listen". |
+| Script `SGFamilySupportI18n` | Translation keys and values now match the new text, without the emoji prefixes. "Find family support services" was added in Bahasa Melayu, 中文 and தமிழ். A short snippet adds `meta name="description"`, the Open Graph tags (`og:title`, `og:description`, `og:type`, `og:url`) and `twitter:card` once the app loads. | Review item 6. A native speaker has not reviewed the translations of the new heading. |
+| Block `WizardStep1Need` | The question container's class changed from `sgsf-qhead` to `sgsf-qhead sgsf-wizard`. | The question and the Listen button now sit in the same centred column as the choices (review item 5). |
+| Theme `SGFamilySupportTheme` | `MaxWidth` was changed from 1280 to 1279 for one publish, then set back to 1280. Five rules were added to the style sheet: `.sgsf-login-brand`, `.login-logo h1`, `.sgsf-need-icon { display: none; }`, `.sgsf-hb-ico:empty` and `.leaflet-container .leaflet-control-attribution a { text-decoration: underline; }`. | Changing the grid setting made the platform rebuild `SGFamilySupportTheme.extra.css` under the current name (D-CSS-01). The style sheet rules support the sign-in branding and the icon removal. The underline means links in the map attribution are no longer told apart by colour alone (review item 8). |
+
+**Published** (UI module, all "success"; the only warnings are the existing security warnings):
+- 22:47:38 UTC: Login screen.
+- 23:13:50 UTC: Browse headings, emoji removal, translator keys and page tags, step 1 alignment.
+- 23:21:16 UTC: theme style sheet additions, and `MaxWidth` set to 1279. The manifest (version 265) then listed `SGFamilySupportTheme.extra.css` (200, `text/css`), and `Test.extra.css` was gone.
+- 23:22:50 UTC: `MaxWidth` set back to 1280. Manifest version 266; `SGFamilySupportTheme.extra.css` contains `max-width: 1280px`.
+
+**Validation:** Service Studio reported 0 errors before each publish (`getValidationMessages`, filter "error"). The model API's own check, run when the edited model is built, also lists "Invalid Icon Library" for the theme, because the theme's icon library setting is empty. That setting is a feature this version of Service Studio does not support: an attempt to set it to FontAwesome 4.0 opened the dialog "Update Service Studio to merge the module. The feature Theme Icon Library is not supported in this version." The attempt was closed and not merged, and the setting stays empty.
+
+**Merge notes:** several merges were refused with "Service Studio is busy — a dialog may be open" while a merge window was open on the development PC. One combined change set failed to merge as a whole ("The merge failed"). It was split into the parts above, and each part merged on its own.
+
+**Not changed, and why:**
+- Friendly 404 page (review item 7). An unknown address such as `/SGFamilySupportFinder/NoSuchPage` is answered by the web server (HTTP 404, "404 - File or directory not found.") before the app loads, so no screen in the module can handle it. A custom 404 page is a web server setting that this personal environment does not expose.
+- Link previews in chat apps. The description and Open Graph tags are added by script after the app loads. Search engines that run JavaScript see them, but link-preview services that read only the server's HTML do not. A reactive module cannot edit the page head that the server sends. Previews in chat apps are unverified and most likely still show only the page title.

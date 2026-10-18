@@ -44,15 +44,13 @@ test('public screens raise no uncaught script errors', async ({ page }) => {
   expect(seen.pageErrors, 'uncaught script errors').toEqual([]);
 });
 
-// Known defect D-CSS-01 (found 18 Oct 2026): every screen lists
-// css/SGFamilySupportFinder.SGFamilySupportTheme.extra.css as a dependency,
-// and the server answers it with a 404 HTML page, so the browser logs a
-// "Refused to apply style" error on every screen. The visible theme comes
-// from SGFamilySupportTheme.css, which loads. Tracked with test.fail until
-// the UI module is republished with the fix (docs/UX_REVIEW.md); when this
-// test starts passing, remove test.fail.
+// D-CSS-01 (found 18 Oct 2026, fixed the same day): after the theme was
+// renamed from "Test" to "SGFamilySupportTheme", every screen asked for
+// css/SGFamilySupportFinder.SGFamilySupportTheme.extra.css while the server
+// only had the file under the old theme name, so it answered 404. The theme's
+// grid settings were changed and published, which rebuilt the file under the
+// current name (docs/SERVICE_STUDIO_CHANGES.md, round 11).
 test('every app stylesheet and script on the public screens loads', async ({ page }) => {
-  test.fail(true, 'D-CSS-01: SGFamilySupportTheme.extra.css returns 404 on every screen');
   test.setTimeout(150000);
   const base = requireBaseURL();
   const seen = watch(page, appRootOf(base));

@@ -1,0 +1,70 @@
+SG Family Support Finder: local checks
+Started: 2026-10-18 23:55:31 UTC
+Commit:  b648f8209d163e74eb4a851e763b56b80b1de60a (uncommitted changes: 11)
+
+Tool versions:
+Terraform v1.9.8
+TFLint version 0.64.0
+checkov 3.3.29
+node v22.23.2
+
+=== terraform fmt -check -recursive
+$ (cd infra && terraform fmt -check -recursive -diff)
+
+--- exit code: 0
+
+=== terraform validate (root)
+$ (cd infra && terraform validate -no-color)
+Success! The configuration is valid.
+--- exit code: 0
+
+=== terraform validate (bootstrap)
+$ (cd infra/bootstrap && terraform validate -no-color)
+Success! The configuration is valid.
+--- exit code: 0
+
+=== tflint --recursive
+$ (cd infra && tflint --recursive --format compact)
+
+--- exit code: 0
+
+=== checkov (terraform)
+$ (cd infra && checkov -d . --framework terraform --quiet --compact -o cli)
+terraform scan results:
+
+Passed checks: 323, Failed checks: 0, Skipped checks: 15
+--- exit code: 0
+
+=== terraform test (offline, mock providers)
+$ (cd infra && terraform test -no-color)
+tests/environment.tftest.hcl... in progress
+  run "prod_environment"... pass
+  run "dev_environment_single_broker_with_rdp"... pass
+tests/environment.tftest.hcl... tearing down
+tests/environment.tftest.hcl... pass
+tests/platform.tftest.hcl... in progress
+  run "defaults"... pass
+  run "single_nat_and_no_prod"... pass
+  run "restricted_rdp"... pass
+  run "reject_rdp_from_internet"... pass
+  run "reject_short_db_backup_retention"... pass
+  run "reject_invalid_log_retention"... pass
+  run "reject_single_az"... pass
+  run "reject_az_outside_region"... pass
+tests/platform.tftest.hcl... tearing down
+tests/platform.tftest.hcl... pass
+
+Success! 10 passed, 0 failed.
+--- exit code: 0
+
+=== Summary (2026-10-18 23:56:40 UTC)
+terraform fmt                  PASS  no formatting changes
+terraform init                 PASS  root + bootstrap
+terraform validate (root)      PASS  Success! The configuration is valid.
+terraform validate (bootstrap) PASS  Success! The configuration is valid.
+tflint                         PASS  0 issues (recommended preset + aws ruleset)
+checkov                        PASS  Passed checks: 323, Failed checks: 0, Skipped checks: 15
+terraform test                 PASS  Success! 10 passed, 0 failed.
+Playwright e2e                 SKIP  SKIP_E2E=1
+
+Not run here: a real 'terraform plan' / 'apply' against AWS (needs an AWS account).

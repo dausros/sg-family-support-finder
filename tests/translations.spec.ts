@@ -28,7 +28,7 @@ const LANGS = [
     name: /中文/, htmlLang: /^zh/, labels: ['服务类型', '排序方式'],
     options: ['所有服务', '名称 A 到 Z', '名称 Z 到 A'],
     // Chinese date: no stray comma between the date and the time.
-    updated: /更新于 \d{4} 年 \d{1,2} 月 \d{1,2} 日 \d{2}:\d{2}（新加坡时间）/, call: '拨打',
+    updated: /更新于 \d{4} 年 \d{1,2} 月 \d{1,2} 日 \d{2}:\d{2}（新加坡时间）/, call: '拨打|致电', // both are standard for "Call"; the Browse links use 致电 since 18 Oct 2026
   },
   {
     name: /தமிழ்/, htmlLang: /^ta/, labels: ['சேவை வகை', 'வரிசைப்படுத்து'],
@@ -62,7 +62,7 @@ for (const L of LANGS) {
       const visible = (await tels.nth(i).innerText()).trim();
       const aria = (await tels.nth(i).getAttribute('aria-label')) ?? '';
       expect(aria).toContain(visible);
-      expect(aria.startsWith(L.call)).toBeTruthy();
+      expect(aria).toMatch(new RegExp('^(' + L.call + ')'));
     }
   });
 }

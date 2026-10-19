@@ -170,7 +170,7 @@ test('Bigger text toggle and Help now call link', async ({ page }) => {
 test('landing page leads into Find Support', async ({ page }) => {
   requireBaseURL();
   await page.goto(screenUrl(process.env.APP_BASE_URL as string, 'FindCentres'), { waitUntil: 'domcontentloaded' });
-  await expect(page.getByText(/not sure where to start\?/i).first()).toBeVisible({ timeout: 60000 });
+  await expect(page.getByRole('heading', { level: 1, name: 'Find family support services' })).toBeVisible({ timeout: 60000 });
   await page.getByRole('link', { name: /find support for my family/i }).click();
   await expect(page.getByRole('button', { name: /help with money/i })).toBeVisible({ timeout: 60000 });
   expect(page.url()).toMatch(/FindSupport/);

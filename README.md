@@ -38,12 +38,12 @@ granted separately on request.
 
 | Check | Date | Result |
 |---|---|---|
-| Playwright, live app, Chromium, `--workers=1`, public specs (no login) | 18 Oct 2026, 18:48–19:04 UTC | **70 passed, 0 failed, 1 skipped** (71 tests; the skip is the logged-in admin flow, not re-run without the login; the 70 include 1 expected failure that tracks known defect D-CSS-01) (`docs/test-evidence/public-run-2026-10-18-evening.md`) |
+| Playwright, live app, Chromium, `--workers=1`, public specs (no login) | 18 Oct 2026, 23:44–23:55 UTC | **75 passed, 0 failed, 1 skipped** (76 tests; the skip is the logged-in admin flow, not re-run without the login; no expected failures) (`docs/test-evidence/public-run-2026-10-18-night.md`) |
 | Playwright, live app, Chromium, `--workers=1`, with the reviewer login | 18 Oct 2026, 16:42–16:53 UTC | **60 passed, 0 failed, 0 skipped** (the 60 tests that existed then; `docs/test-evidence/reviewer-run-2026-10-18.md`) |
 | Accessibility: axe-core, WCAG 2.0 / 2.1 A and AA, every public screen state, 390 px and 1440 px, 4 languages | 18 Oct 2026, 19:01–19:03 UTC | **0 violations** (`tests/accessibility.spec.ts`, 8 tests) |
-| `terraform test` (offline, mocked AWS provider) | 18 Oct 2026 | **10 passed, 0 failed** |
-| checkov | 18 Oct 2026 | **323 passed, 0 failed, 15 skipped** (each skip has its reason inline; listed in `infra/README.md`) |
-| tflint (with the AWS ruleset) | 18 Oct 2026 | **0 issues** |
+| `terraform test` (offline, mocked AWS provider) | 18 Oct 2026, 23:55–23:57 UTC (`docs/test-evidence/infra-checks-2026-10-18-night.txt`) | **10 passed, 0 failed** |
+| checkov | 18 Oct 2026, 23:55–23:57 UTC | **323 passed, 0 failed, 15 skipped** (each skip has its reason inline; listed in `infra/README.md`) |
+| tflint (with the AWS ruleset) | 18 Oct 2026, 23:55–23:57 UTC | **0 issues** |
 | `terraform fmt -check`, `terraform validate` | 18 Oct 2026 | pass |
 | Real `terraform plan` / `apply` in an AWS account | | **not run** (no AWS account) |
 
@@ -370,13 +370,13 @@ app. The two `[MOCKED]` specs abort the browser→OutSystems screen-action
 call to exercise the error/Retry path. They are labelled as mocks and are not
 evidence of server-side fallback.
 
-**Latest full run: 18 Oct 2026, 18:48–19:04 UTC (02:48–03:04 SGT on 19 Oct), Chromium, `--workers=1`, against the live app, without a login: 70 passed, 0 failed, 1 skipped (71 tests).** The skipped test is the logged-in admin flow, which needs the reviewer login and was not re-run. The 70 include one expected failure (`test.fail`) that tracks known defect D-CSS-01. Evidence: `docs/test-evidence/public-run-2026-10-18-evening.md`.
+**Latest full run: 18 Oct 2026, 23:44–23:55 UTC (07:44–07:55 SGT on 19 Oct), Chromium, `--workers=1`, against the live app, without a login: 75 passed, 0 failed, 1 skipped (76 tests).** The skipped test is the logged-in admin flow, which needs the reviewer login and was not re-run. Known defect D-CSS-01 is fixed, so the stylesheet test now passes as a normal test. Evidence: `docs/test-evidence/public-run-2026-10-18-night.md`.
 
 **Latest run with the `reviewer` CentreAdmin login: 18 Oct 2026, 16:42–16:53 UTC (00:42–00:53 SGT on 19 Oct): 60 passed, 0 failed, 0 skipped (the 60 tests that existed then).** Evidence: `docs/test-evidence/reviewer-run-2026-10-18.md`.
 
-Earlier runs the same day: 16:20–16:29 UTC through `scripts/check-all.sh`, 59 passed, 0 failed, 1 skipped (the admin flow, before the login existed; full output in `docs/test-evidence/local-run-2026-10-18.txt`); 23:44–23:53 SGT after the actions tidy and Listen fix, 59 passed, 0 failed, 1 skipped (60 tests); 21:59–22:09 SGT, 54 passed, 0 failed, 1 skipped (55 tests). In the 21:59 run, the first run of `persistence-refresh.spec.ts` failed 2 tests because the app had switched to `Updated dd/MM/yyyy HH:mm SGT` and the parser still expected `dd MMM yyyy, HH:mm`; the parser was updated and the spec re-run: 4/4.
+Earlier runs the same day: 18:48–19:04 UTC, 70 passed, 0 failed, 1 skipped (71 tests, including the expected failure for D-CSS-01; `docs/test-evidence/public-run-2026-10-18-evening.md`); 16:20–16:29 UTC through `scripts/check-all.sh`, 59 passed, 0 failed, 1 skipped (the admin flow, before the login existed; full output in `docs/test-evidence/local-run-2026-10-18.txt`); 23:44–23:53 SGT after the actions tidy and Listen fix, 59 passed, 0 failed, 1 skipped (60 tests); 21:59–22:09 SGT, 54 passed, 0 failed, 1 skipped (55 tests). In the 21:59 run, the first run of `persistence-refresh.spec.ts` failed 2 tests because the app had switched to `Updated dd/MM/yyyy HH:mm SGT` and the parser still expected `dd MMM yyyy, HH:mm`; the parser was updated and the spec re-run: 4/4.
 
-Per-spec counts below are from the 18:48–19:04 UTC run. The logged-in admin test was skipped there; it passed in the 16:42 UTC run with the reviewer login.
+Per-spec counts below are from the 23:44–23:55 UTC run. The logged-in admin test was skipped there; it passed in the 16:42 UTC run with the reviewer login.
 
 | Spec | Passed | Failed | Covers |
 |---|---|---|---|
@@ -393,7 +393,8 @@ Per-spec counts below are from the 18:48–19:04 UTC run. The logged-in admin te
 | `listen.spec.ts` | 5 | 0 | Listen reads ms/zh/ta text with a ms-MY / zh-CN / ta-IN voice; with only English voices it shows the translated "no voice" note and speaks nothing; English unchanged (Web Speech API stubbed: headless Chromium has no voices) |
 | `nearest.spec.ts` | 2 | 0 | bad/unknown postal code messages; 3 nearest sorted by distance with call + directions |
 | `no-results.spec.ts` | 1 | 0 | empty state for a gibberish query |
-| `page-health.spec.ts` | 3 | 0 | no uncaught script errors on the public screens; every app stylesheet and script loads (expected failure, tracks D-CSS-01); Browse shows results within 5 s on a repeat visit at 390 px |
+| `page-health.spec.ts` | 3 | 0 | no uncaught script errors on the public screens; every app stylesheet and script loads (D-CSS-01, fixed 18 Oct 2026); Browse shows results within 5 s on a repeat visit at 390 px |
+| `page-structure.spec.ts` | 5 | 0 | staff sign-in page branded with no dead links; Browse has one h1, a level 2 directory heading and a level 3 heading per result; no emoji on the public screens; page description and Open Graph tags after load; map attribution links underlined |
 | `persistence-refresh.spec.ts` | 4 | 0 | cached timestamp stable, <24 h freshness (SGT stamp), no duplicates, [MOCKED] fault + Retry |
 | `real-records.spec.ts` | 1 | 0 | real FSC records from data.gov.sg render |
 | `search.spec.ts` | 2 | 0 | case-insensitive search by name/address |
@@ -473,14 +474,9 @@ app runs on OutSystems Cloud, not on this design. A real `terraform plan` or
   each logged-in run adds one hidden row to the admin list.
 - Tests run on Chromium only, against the live personal environment, which
   can be slow on a cold start.
-- Known defect D-CSS-01: every screen requests
-  `SGFamilySupportTheme.extra.css`, which the server answers with a 404, so the
-  browser console shows a stylesheet error on every screen. The visible theme
-  loads from `SGFamilySupportTheme.css`. Tracked by an expected-failure test in
-  `tests/page-health.spec.ts`; the cause is not yet verified.
-- Open UX items from the 18 Oct 2026 review (template sign-in page, emoji used
-  as icons, heading structure on Browse, link previews, the web server's plain
-  404 page) and the planned Service Studio changes for each are in
+- Open UX items after the second round of module changes (the web server's
+  plain 404 page for unknown addresses, link previews in chat apps that do not
+  run the page script, the two-column result layout on desktop) are in
   `docs/UX_REVIEW.md`.
 
 ## Development workflow

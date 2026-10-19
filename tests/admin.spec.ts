@@ -16,7 +16,7 @@ test('admin can add, edit, hide and show a centre', async ({ page }) => {
   await page.goto('CentreAdmin', { waitUntil: 'networkidle', timeout: 120000 });
   await page.getByRole('textbox', { name: /username/i }).fill(user!);
   await page.locator('input[type=password]').fill(pass!);
-  await page.getByRole('button', { name: /login/i }).click();
+  await page.getByRole('button', { name: /sign in|login/i }).click();
   await expect(page.getByText('Manage centres').first()).toBeVisible({ timeout: 60000 });
   const name = 'Reviewer Test Centre ' + Date.now();
   await page.getByRole('button', { name: 'Add a centre' }).click();

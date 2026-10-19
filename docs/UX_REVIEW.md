@@ -11,8 +11,12 @@ Screenshots: `docs/screenshots/review-2026-10-18/`.
 
 ## Score
 
-**Public site: 8 / 10.** Unchanged by this round, because no change was made
-to the modules (see "Next Service Studio changes").
+**Public site: 9 / 10** after the module changes of the second round
+(18 Oct 2026, 22:15–23:55 UTC, "Second round" below). It was 8 / 10 in the
+first round, when no change had been made to the modules.
+
+The first-round findings are kept below as they were observed, with their
+status in the second round.
 
 What earns it:
 - Real, attributed data: 94 records from three MSF datasets, with the source,
@@ -49,7 +53,7 @@ The role check on the server, the audit log and the hide-instead-of-delete
 rule are described in the README and were last exercised by the logged-in test
 run on 18 Oct 2026, 16:42–16:53 UTC (`docs/test-evidence/reviewer-run-2026-10-18.md`).
 
-## What changed in this round
+## What changed in the first round
 
 All changes are in this repository; none in the modules.
 
@@ -74,7 +78,38 @@ All changes are in this repository; none in the modules.
 
 Test evidence for this round: `docs/test-evidence/public-run-2026-10-18-evening.md`.
 
-## Next Service Studio changes
+## Second round, 18 Oct 2026, 22:15–23:55 UTC
+
+The module changes are logged in `docs/SERVICE_STUDIO_CHANGES.md` (round 11).
+Every status below was checked on the live app after the last publish at
+23:22:50 UTC, by the tests named and by screenshots at 390 px and 1440 px
+taken at 23:45–23:47 UTC (`docs/screenshots/review-2026-10-18-round2/`).
+
+| # | First-round finding | Status | Evidence |
+|---|---|---|---|
+| 1 | Template sign-in page | Fixed. Heading "Staff sign-in", page title "Staff sign-in - SG Family Support Finder", the app name in place of the "Te" logo, no image, no "Forgot password?" link, a "Back to the public site" link to Browse, button "Sign in". | `tests/page-structure.spec.ts` (sign-in test); screenshots |
+| 2 | D-CSS-01, `SGFamilySupportTheme.extra.css` answered 404 | Fixed. Cause: the theme rename left the generated grid stylesheet under the old name. Changing the theme's grid setting and publishing rebuilt it under the current name; the file now answers 200 `text/css`. | `tests/page-health.spec.ts`: the stylesheet test now passes as a normal test (`test.fail` removed) |
+| 3 | Emoji used as icons | Fixed. No emoji on Browse, Find Support step 1 or the results. The words carry the meaning; "Listen" no longer has a speaker emoji read out. | `tests/page-structure.spec.ts` (emoji test) |
+| 4 | Browse had one heading, "Not sure where to start?" | Fixed. One level 1 heading, "Find family support services"; "Browse all support places" is level 2; each result name is level 3. | `tests/page-structure.spec.ts` (heading test); `tests/findsupport.spec.ts` (landing test) |
+| 5 | Find Support step 1 question at the page edge | Fixed at 1440 px: the question, Listen and the choices share one centred column. At 390 px the question block is still indented about 16 px more than the page heading (see "Still open"). | screenshots `find-support` at 390 px and 1440 px |
+| 6 | No description or Open Graph tags | Partly fixed. `meta description`, `og:title`, `og:description`, `og:type`, `og:url` and `twitter:card` are added by script once the app loads. Link-preview services that read only the server's HTML do not run the script, so chat-app previews are unverified and most likely still show only the page title. | `tests/page-structure.spec.ts` (tags test) |
+| 7 | Plain web server 404 page | Not changed. The web server answers an unknown address before the app loads, and this personal environment does not expose a custom 404 setting. | screenshot of `/SGFamilySupportFinder/NoSuchPage` (HTTP 404) |
+| 8 | Map attribution link told apart by colour only | Fixed. Links in the map attribution are underlined. | `tests/page-structure.spec.ts` (underline test) |
+
+**Still open (what keeps the public site from 10 / 10):**
+- The web server's plain 404 page for unknown addresses (item 7).
+- Link previews in chat apps (item 6): the tags exist only after the script
+  runs.
+- On desktop, Browse lays results out as two columns of boxed entries; a
+  single ruled list would read faster and match the rest of the app.
+- At 390 px, the sign-in page's "Remember me on this device" and "Back to the
+  public site" share one tight row, and the Find Support step 1 question block
+  is indented more than the page heading.
+- The Bahasa Melayu, 中文 and தமிழ் translations of the new Browse heading
+  have not been reviewed by a native speaker.
+- The logged-in staff screen was not reviewed in this round.
+
+## Service Studio changes planned in the first round (all but the 404 page done in the second round)
 
 In order of value. Each is small, and each has a test that will show it worked.
 
